@@ -1,0 +1,9 @@
+README.md
+pyproject.toml
+src/nobugs_portal/__init__.py
+src/nobugs_soar.egg-info/PKG-INFO
+src/nobugs_soar.egg-info/SOURCES.txt
+src/nobugs_soar.egg-info/dependency_links.txt
+src/nobugs_soar.egg-info/requires.txt
+src/nobugs_soar.egg-info/top_level.txt
+tests/test_smoke.py

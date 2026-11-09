@@ -1,0 +1,13 @@
+Metadata-Version: 2.4
+Name: nobugs-soar
+Version: 0.1.0
+Summary: 공공기관 포털 보안 관제·자동 대응(SOAR) — 단독 설계·구현
+Requires-Python: >=3.12
+Requires-Dist: fastapi>=0.115
+Requires-Dist: uvicorn>=0.30
+Requires-Dist: sqlalchemy>=2.0
+Requires-Dist: pydantic>=2.7
+Provides-Extra: dev
+Requires-Dist: pytest>=8; extra == "dev"
+Requires-Dist: httpx>=0.27; extra == "dev"
+Requires-Dist: ruff>=0.6; extra == "dev"
