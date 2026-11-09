@@ -11,3 +11,5 @@ instance/
 *.sqlite*
 *.db
 .local/
+*.egg-info/
+.ruff_cache/
