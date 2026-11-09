@@ -25,7 +25,7 @@ py -m venv .venv; .\.venv\Scripts\python.exe -m pip install -e ".[dev]"
 $env:NB_RESPONSE_API_KEY='<무작위 키>'; $env:NB_RESPONSE_ALLOWED_CIDRS='127.0.0.0/8'
 .\.venv\Scripts\python.exe -m uvicorn nobugs_portal.app:public_factory --factory --port 5100 --app-dir src      # 일반 포털
 .\.venv\Scripts\python.exe -m uvicorn nobugs_portal.control:control_factory --factory --port 5101 --app-dir src  # 대응 API(별도 프로세스)
-.\scripts	est.ps1   # 린트 + 테스트
+.\scripts\test.ps1   # 린트 + 테스트
 ```
 
 ## 실행 (최종 목표)
