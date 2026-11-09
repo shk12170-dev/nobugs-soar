@@ -4,6 +4,7 @@ from __future__ import annotations
 from fastapi import FastAPI, Request
 from starlette.concurrency import run_in_threadpool
 
+from . import web
 from .config import Settings
 from .deps import ok
 from .errors import error_response, install_error_handlers
@@ -11,6 +12,17 @@ from .netinfo import client_ip
 from .routers import admin, auth, petitions, staff
 from .services import is_blocked
 from .state import AppState
+
+# 외부 스크립트·스타일·이미지는 같은 출처만 허용한다(빌드 결과에 인라인 스크립트가 없다)
+SECURITY_HEADERS = {
+    "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; "
+                               "font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; "
+                               "form-action 'self'",
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "Referrer-Policy": "same-origin",
+    "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+}
 
 
 def create_public_app(settings: Settings | None = None, state: AppState | None = None) -> FastAPI:
@@ -45,6 +57,7 @@ def create_public_app(settings: Settings | None = None, state: AppState | None =
                 state.events.emit("web.not_found", outcome="denied", status=404, src_ip=ip, path=path)
 
         await run_in_threadpool(record)
+        response.headers.update(SECURITY_HEADERS)
         return response
 
     @app.get("/api/v1/health")
@@ -53,6 +66,7 @@ def create_public_app(settings: Settings | None = None, state: AppState | None =
 
     for module in (auth, petitions, staff, admin):
         app.include_router(module.router)
+    app.include_router(web.router)
     return app
 
 

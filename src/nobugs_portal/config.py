@@ -29,6 +29,7 @@ class Settings:
     response_api_key: str = ""
     response_allowed_cidrs: tuple[str, ...] = ()
     enable_docs: bool = False
+    frontend_dist: str = "web/dist"
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> Settings:
@@ -49,4 +50,5 @@ class Settings:
             response_api_key=e.get("NB_RESPONSE_API_KEY", ""),
             response_allowed_cidrs=cidrs,
             enable_docs=_bool(e.get("NB_ENABLE_DOCS"), False),
+            frontend_dist=e.get("NB_FRONTEND_DIST", defaults.frontend_dist),
         )
