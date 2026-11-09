@@ -17,12 +17,12 @@
 
 ## 단계 상세
 
-### M0 — 기반 (반나절)
+### M0 — 기반 (반나절) ✅ 완료
 - 레포·README·CLEANROOM·PROVENANCE·BEHAVIOR-SPEC·PLAN ✅(이 커밋)
 - `pyproject`, 디렉터리 구조(`portal/`, `engine/`, `infra/`, `tools/`), GitHub Actions(pytest·린트)
 - **완료 조건:** CI 초록, `make test`(또는 스크립트)로 로컬 테스트 실행
 
-### M1 — 포털 백엔드 (FastAPI)
+### M1 — 포털 백엔드 (FastAPI) ✅ 완료 (테스트 101건)
 - 모델: 사용자·세션·민원·민원 이력·차단 IP·로그인 시도·대응 영수증(멱등)
 - API: 가입·로그인·로그아웃, 민원 CRUD(소유권), 담당자 배정·상태·답변, 관리자 계정·잠금·비밀번호 재설정
 - 미들웨어: 출발지 IP(연결 정보) → 차단 판정 → 세션·CSRF. 404·파일 접근 이벤트

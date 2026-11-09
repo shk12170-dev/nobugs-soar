@@ -6,7 +6,7 @@
 
 ## 상태
 
-**M0 — 계획 단계.** 아직 실행 가능한 코드는 없습니다. 단계별 계획은 [docs/PLAN.md](docs/PLAN.md), 구현할 동작의 기준은 [docs/BEHAVIOR-SPEC.md](docs/BEHAVIOR-SPEC.md)입니다.
+**M1 완료 — 포털 백엔드(FastAPI) + 별도 대응 API 앱.** 테스트 101건 통과, 실제 서버 프로세스 2개로 차단 시나리오를 확인했습니다. 프론트(M2)·관제 연결(M3)·대응 엔진(M4)은 아직입니다. 단계별 계획은 [docs/PLAN.md](docs/PLAN.md), 구현할 동작의 기준은 [docs/BEHAVIOR-SPEC.md](docs/BEHAVIOR-SPEC.md)입니다.
 
 ## 구성 (목표)
 
@@ -18,7 +18,17 @@
                                                                    티켓 저장소·대시보드·알림 ◀┘
 ```
 
-## 실행 (목표)
+## 실행 (M1 시점: 포털 백엔드만)
+
+```powershell
+py -m venv .venv; .\.venv\Scripts\python.exe -m pip install -e ".[dev]"
+$env:NB_RESPONSE_API_KEY='<무작위 키>'; $env:NB_RESPONSE_ALLOWED_CIDRS='127.0.0.0/8'
+.\.venv\Scripts\python.exe -m uvicorn nobugs_portal.app:public_factory --factory --port 5100 --app-dir src      # 일반 포털
+.\.venv\Scripts\python.exe -m uvicorn nobugs_portal.control:control_factory --factory --port 5101 --app-dir src  # 대응 API(별도 프로세스)
+.\scripts	est.ps1   # 린트 + 테스트
+```
+
+## 실행 (최종 목표)
 
 `docker compose up -d` 와 설치 스크립트 한 번으로 전체가 뜨는 것이 최종 목표입니다(M7).
 
