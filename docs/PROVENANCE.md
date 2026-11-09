@@ -8,3 +8,4 @@
 | 2026-11-10 | pyproject.toml, .github/, scripts/test.ps1 | 새로 작성 | M0 |
 | 2026-11-10 | src/nobugs_portal/ (config, models, db, security, errors, netinfo, events, state, services, deps, app, control, routers/*) | 새로 작성 | M1. 명세(BEHAVIOR-SPEC)와 공식 문서만 참고. 팀 저장소 코드는 열어 보지 않고 작성 |
 | 2026-11-10 | tests/ | 새로 작성 | 101건. 실제 서버 2개로 시험하다 찾은 결함 2건(동시 시작 시 표 생성 경쟁, 대응 앱 이벤트의 src_ip unknown)을 회귀 테스트로 고정 |
+| 2026-11-10 | web/ (React+TS 화면, api.ts, 단위·E2E 테스트), src/nobugs_portal/web.py·cli.py, scripts/e2e_server.py | 새로 작성 | M2. 포털 이름은 가상 기관 "누리시청"으로 새로 정함 |

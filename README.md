@@ -6,7 +6,7 @@
 
 ## 상태
 
-**M1 완료 — 포털 백엔드(FastAPI) + 별도 대응 API 앱.** 테스트 101건 통과, 실제 서버 프로세스 2개로 차단 시나리오를 확인했습니다. 프론트(M2)·관제 연결(M3)·대응 엔진(M4)은 아직입니다. 단계별 계획은 [docs/PLAN.md](docs/PLAN.md), 구현할 동작의 기준은 [docs/BEHAVIOR-SPEC.md](docs/BEHAVIOR-SPEC.md)입니다.
+**M2 완료 — 포털(FastAPI + React) + 별도 대응 API 앱.** 백엔드 테스트 114건, 프론트 단위 테스트 23건, 실제 브라우저 E2E 7건이 통과합니다. 관제 연결(M3)·대응 엔진(M4)은 아직입니다. 단계별 계획은 [docs/PLAN.md](docs/PLAN.md), 구현할 동작의 기준은 [docs/BEHAVIOR-SPEC.md](docs/BEHAVIOR-SPEC.md)입니다.
 
 ## 구성 (목표)
 
@@ -26,6 +26,17 @@ $env:NB_RESPONSE_API_KEY='<무작위 키>'; $env:NB_RESPONSE_ALLOWED_CIDRS='127.
 .\.venv\Scripts\python.exe -m uvicorn nobugs_portal.app:public_factory --factory --port 5100 --app-dir src      # 일반 포털
 .\.venv\Scripts\python.exe -m uvicorn nobugs_portal.control:control_factory --factory --port 5101 --app-dir src  # 대응 API(별도 프로세스)
 .\scripts\test.ps1   # 린트 + 테스트
+```
+
+### 프론트(React) 빌드·실행
+
+```powershell
+cd web; npm ci; npm run build          # 타입 검사 + 빌드 -> web/dist (포털이 / 로 서빙)
+npm test                                # 단위 테스트(vitest)
+npm run test:e2e                        # 실제 브라우저 E2E(Playwright, 임시 DB로 서버를 직접 띄움)
+cd ..; $env:NB_DATABASE_URL='sqlite:///instance/portal.sqlite3'
+.\.venv\Scripts\python.exe -m nobugs_portal.cli seed-demo                 # 시연 계정 3개(비밀번호는 한 번만 표시)
+.\.venv\Scripts\python.exe -m uvicorn nobugs_portal.app:public_factory --factory --port 5100 --app-dir src
 ```
 
 ## 실행 (최종 목표)
