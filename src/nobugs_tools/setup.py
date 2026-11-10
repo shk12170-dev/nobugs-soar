@@ -65,16 +65,14 @@ def step_seed_baseline() -> bool:
 
 
 def step_seed_demo() -> bool:
-    """빈 DB에만 시연 계정 3개를 만든다. 이미 계정이 있으면 조용히 건너뛴다(cli.py가 알아서 거절한다)."""
-    # encoding을 명시한다 - 자식 프로세스는 UTF-8로 쓰는데 Windows 기본 로캘(cp949)로 읽으면 깨진다
-    # (실제로 겪은 문제: 한글 출력에서 읽기 스레드가 UnicodeDecodeError로 죽는다).
-    result = run([sys.executable, "-m", "nobugs_portal.cli", "seed-demo"], capture_output=True, text=True,
-                encoding="utf-8")
-    if result.returncode != 0:
-        print("시연 계정은 이미 있어 건너뜁니다.")
-        return False
-    print(result.stdout)
-    return True
+    """빈 DB에만 시연 계정 3개를 만든다. 이미 계정이 있으면 cli.py가 알아서 거절한다(그 메시지가 그대로 보인다).
+
+    출력을 가로채 다시 안 찍는다 - 자식 프로세스가 콘솔에 바로 쓰게 둔다. capture_output으로 받으면 자식의
+    실제 출력 인코딩이 이 프로세스를 어떤 셸에서 띄웠는지에 따라 달라져(PowerShell이면 UTF-8, Git Bash면
+    cp949인 걸 실제로 겪었다) 고정된 encoding을 넘기면 둘 중 하나에서는 읽기 스레드가 깨진다.
+    """
+    result = run([sys.executable, "-m", "nobugs_portal.cli", "seed-demo"])
+    return result.returncode == 0
 
 
 def step_graylog_setup(live: bool) -> None:

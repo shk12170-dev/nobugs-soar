@@ -59,8 +59,9 @@
 
 ### M7 — 측정·배포·문서 (진행 중)
 - 케이스별 N=5 측정 자동화(회차마다 계정·출발지 분리) ✅ `src/nobugs_tools/measure.py` — 결과 표는
-  [docs/MEASUREMENTS.md](MEASUREMENTS.md). S1·S4·S8·S10·S12를 실제 서버로 2회씩 돌려 확인(아래 PROVENANCE).
-  S7 포함 전체 케이스 N=5 측정은 Wazuh까지 띄우는 다음 측정일에 진행한다.
+  [docs/MEASUREMENTS.md](MEASUREMENTS.md). 전체 6케이스(S1·S4·S7·S8·S10·S12)를 전체 스택(Wazuh 포함)으로
+  N=5씩 돌려 30회 중 29회 확인(아래 PROVENANCE). S7 5회차 1건은 기준본 파일을 돌려 쓰다 재알림 묵음
+  기간(10분)에 걸린 측정 설계의 한계였고, 실제로는 묵음 기간이 끝나자 정확히 복구까지 끝났다(MEASUREMENTS.md).
 - `setup` 스크립트 + `docker compose up -d`로 **처음부터 재현**, 시작 시 상태 대조 ✅
   `scripts/setup.ps1`(venv·프론트 빌드) + `src/nobugs_tools/setup.py`(.env·docker·기준본·시연 계정·Graylog
   설정·상태 대조). 실제로 돌려 확인(아래 PROVENANCE). 포털·대응 API·엔진은 여러 터미널에서 보며 시연해야 해서
