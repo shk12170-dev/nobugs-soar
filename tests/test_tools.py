@@ -1,11 +1,15 @@
 """설치·관제 설정·공격 재현 도구의 시험."""
 import json
 import threading
+import time
+from dataclasses import replace
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 import pytest
+import uvicorn
 from conftest import PASSWORD, read_events
 
+from nobugs_portal.app import create_public_app
 from nobugs_tools import attacks, definitions, graylog, make_env
 
 # ---- 탐지 정의 ----
@@ -56,6 +60,24 @@ def test_s4_needs_both_failure_and_success_and_a_count_of_six():
     assert cond["left"]["right"]["value"] == 5 and cond["right"]["right"]["value"] == 2   # 합 6회 이상, 2종류
 
 
+def test_s7_needs_tamper_signal_and_visitor_access_together():
+    d = definitions.s7_tamper_then_access()
+    config = d["config"]
+    assert config["group_by"] == ["asset_id", "file_key"]
+    assert "tamper-signal" in config["query"] and "file-access" in config["query"] and "200" in config["query"]
+    assert config["conditions"]["expression"]["right"]["right"]["value"] == 2
+    assert config["search_within_ms"] == 10 * 60_000
+    assert set(d["field_spec"]) >= {"asset_id", "file_key", "case_id"}
+    assert d["field_spec"]["case_id"]["providers"][0]["template"] == "S7"
+
+
+def test_s7_does_not_require_src_ip_since_tamper_signal_alerts_lack_it():
+    # tamper-signal 메시지에는 src_ip가 없다. require_values=True면 Graylog가 필드 계산에 실패해
+    # 이벤트 알림 자체가 조용히 멈춘다(S1 등 src_ip가 항상 있는 케이스는 그대로 필수로 둔다).
+    assert definitions.s7_tamper_then_access()["field_spec"]["src_ip"]["providers"][0]["require_values"] is False
+    assert definitions.s1_login_bruteforce()["field_spec"]["src_ip"]["providers"][0]["require_values"] is True
+
+
 def test_s8_needs_scan_and_login_failure_together():
     config = definitions.s8_scan_then_login()["config"]
     assert config["group_by"] == ["src_ip"]
@@ -76,11 +98,25 @@ def test_s12_is_a_simple_request_count_threshold():
     assert config["search_within_ms"] == 60_000
 
 
+def test_engine_notification_body_carries_asset_id_and_file_key():
+    # S7은 asset_id/file_key로 조치한다 - 본문에 없으면 엔진이 빈 asset_id를 받아 조용히 거부한다.
+    body = definitions.engine_notification("http://engine/webhook/graylog", "key", live=True)["config"][
+        "body_template"]
+    assert "${event.fields.asset_id}" in body and "${event.fields.file_key}" in body
+
+
+def test_engine_notification_dry_run_flag_follows_live_argument():
+    assert '"dry_run":false' in definitions.engine_notification("http://x", "k", live=True)["config"][
+        "body_template"]
+    assert '"dry_run":true' in definitions.engine_notification("http://x", "k", live=False)["config"][
+        "body_template"]
+
+
 def test_all_definitions_cover_every_case_and_build_without_error():
     for case, build in definitions.ALL_DEFINITIONS.items():
         d = build()
         assert d["field_spec"]["case_id"]["providers"][0]["template"] == case
-    assert set(definitions.ALL_DEFINITIONS) == {"S1", "S4", "S8", "S10", "S12"}
+    assert set(definitions.ALL_DEFINITIONS) == {"S1", "S4", "S7", "S8", "S10", "S12"}
 
 
 # ---- .env 생성 ----
@@ -208,6 +244,43 @@ def test_load_env_reads_file_without_overriding_real_environment(tmp_path, monke
 
 
 # ---- 공격 재현(실제 서버) ----
+
+
+@pytest.fixture
+def live_portal_dist(state, tmp_path):
+    """실제 소켓으로 도는 일반 포털, 프론트 루트는 임시 폴더(S7 변조 시험이 실제 저장소 파일을 건드리지 않도록)."""
+    dist = tmp_path / "dist"
+    dist.mkdir()
+    (dist / "index.html").write_text("<html>home</html>", encoding="utf-8")
+    new_state = type(state)(settings=replace(state.settings, frontend_dist=str(dist)), db=state.db,
+                            events=state.events)
+    app = create_public_app(state=new_state)
+    server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=0, log_level="warning"))
+    thread = threading.Thread(target=server.run, daemon=True)
+    thread.start()
+    for _ in range(100):
+        if server.started:
+            break
+        time.sleep(0.05)
+    port = server.servers[0].sockets[0].getsockname()[1]
+    yield f"http://127.0.0.1:{port}", dist
+    server.should_exit = True
+    thread.join(timeout=5)
+
+
+def test_s7_attack_overwrites_the_file_and_records_a_visitor_access(live_portal_dist, settings):
+    base_url, dist = live_portal_dist
+    out = attacks.s7_deface(base_url, str(dist), "index.html", source="127.0.0.7")
+    assert out["written"] is True and out["visit_status"] == 200
+    assert "defaced" in (dist / "index.html").read_text(encoding="utf-8")
+    access = [e for e in read_events(settings) if e["event_type"] == "web.file_access" and e["src_ip"] == "127.0.0.7"]
+    assert len(access) == 1 and access[0]["file_key"] == "index.html"
+
+
+def test_s7_attack_refuses_a_missing_file(live_portal_dist):
+    base_url, dist = live_portal_dist
+    with pytest.raises(ValueError, match="대상 파일이 없습니다"):
+        attacks.s7_deface(base_url, str(dist), "nope.html", source="127.0.0.7")
 
 
 def test_s1_attack_sends_failed_logins_seen_as_the_chosen_source(live_portal, settings):

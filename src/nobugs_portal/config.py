@@ -30,6 +30,9 @@ class Settings:
     response_allowed_cidrs: tuple[str, ...] = ()
     enable_docs: bool = False
     frontend_dist: str = "web/dist"
+    # S7 기준본: 변조 복구 때 이 폴더의 내용으로 되돌린다(instance/, Git 제외)
+    baseline_dir: str = "instance/baseline"
+    quarantine_dir: str = "instance/quarantine"
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> Settings:
@@ -51,4 +54,6 @@ class Settings:
             response_allowed_cidrs=cidrs,
             enable_docs=_bool(e.get("NB_ENABLE_DOCS"), False),
             frontend_dist=e.get("NB_FRONTEND_DIST", defaults.frontend_dist),
+            baseline_dir=e.get("NB_BASELINE_DIR", defaults.baseline_dir),
+            quarantine_dir=e.get("NB_QUARANTINE_DIR", defaults.quarantine_dir),
         )

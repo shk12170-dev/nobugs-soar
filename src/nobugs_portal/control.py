@@ -18,6 +18,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
+from . import baseline
 from .config import Settings
 from .deps import Ctx, get_ctx, ok
 from .errors import ApiError, install_error_handlers
@@ -98,6 +99,18 @@ class UnblockBody(BaseModel):
 
 class LockBody(BaseModel):
     username: str = Field(min_length=1, max_length=40)
+
+
+FILE_KEY = re.compile(r"^[A-Za-z0-9][A-Za-z0-9/_.\-]{0,199}$")
+
+
+class FileKeyBody(BaseModel):
+    file_key: str = Field(min_length=1, max_length=200)
+
+    def parsed(self) -> str:
+        if not FILE_KEY.match(self.file_key) or ".." in self.file_key:
+            raise ApiError(400, "VALIDATION_ERROR", "파일 키 형식이 올바르지 않습니다.")
+        return self.file_key
 
 
 @router.get("/ping")
@@ -186,6 +199,51 @@ def account_state(username: str, ctx: Ctx = Depends(get_ctx)):
     sessions = ctx.db.scalar(select(func.count()).select_from(LoginSession)
                              .where(LoginSession.user_id == target.id, LoginSession.expires_at > utcnow())) or 0
     return ok({"username": target.username, "locked": target.locked, "active_sessions": sessions, "role": target.role})
+
+
+@router.get("/files/{file_key:path}")
+def file_state(file_key: str, ctx: Ctx = Depends(get_ctx)):
+    """S7: 지금 해시·기준본 해시·기준본과 일치 여부(읽기 전용, 효과 확인용)."""
+    settings = ctx.state.settings
+    state = baseline.file_state(settings.frontend_dist, settings.baseline_dir, FileKeyBody(file_key=file_key).parsed())
+    return ok(state)
+
+
+@router.post("/files/restore")
+def restore_file(body: FileKeyBody, request: Request, ctx: Ctx = Depends(get_ctx)):
+    """S7: 기준본 파일로 되돌린다. 기준본에 없는 파일은 400(격리 대상이지 복구 대상이 아님)."""
+    key = idempotency_key(request)
+    file_key = body.parsed()
+    settings = ctx.state.settings
+
+    def action() -> dict:
+        try:
+            return baseline.restore(settings.frontend_dist, settings.baseline_dir, file_key)
+        except baseline.BaselineError as exc:
+            raise ApiError(400, "NOT_IN_BASELINE", str(exc)) from exc
+
+    result, replayed = run_idempotent(ctx, key, "/files/restore", {"file_key": file_key}, action)
+    if not replayed:
+        ctx.state.events.emit("response.file_restored", outcome="success", status=200, src_ip=ctx.ip,
+                              file_key=file_key)
+    return ok({**result, "replayed": replayed})
+
+
+@router.post("/files/quarantine")
+def quarantine_file(body: FileKeyBody, request: Request, ctx: Ctx = Depends(get_ctx)):
+    """S7: 기준본에 없는(공격자가 새로 만든) 파일을 웹 루트 밖으로 치운다."""
+    key = idempotency_key(request)
+    file_key = body.parsed()
+    settings = ctx.state.settings
+
+    def action() -> dict:
+        return baseline.quarantine(settings.frontend_dist, settings.quarantine_dir, file_key)
+
+    result, replayed = run_idempotent(ctx, key, "/files/quarantine", {"file_key": file_key}, action)
+    if not replayed:
+        ctx.state.events.emit("response.file_quarantined", outcome="success", status=200, src_ip=ctx.ip,
+                              file_key=file_key)
+    return ok({**result, "replayed": replayed})
 
 
 def create_control_app(settings: Settings | None = None, state: AppState | None = None) -> FastAPI:

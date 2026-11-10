@@ -16,7 +16,7 @@ RESULT_KO = {
     "applied": "조치 적용", "already_applied": "이미 적용돼 있음", "released": "원복 완료",
     "dry_run": "모의 실행 (실제 조치 없음)", "failed": "조치 실패", "uncertain": "결과 불확실 (확인 필요)",
 }
-TITLES = {"S1": "로그인 반복 실패(무차별 대입)", "S4": "로그인 실패 뒤 성공(계정 탈취 의심)",
+TITLES = {"S1": "로그인 반복 실패(무차별 대입)", "S4": "로그인 실패 뒤 성공(계정 탈취 의심)", "S7": "홈페이지 변조",
           "S8": "웹 스캔 뒤 로그인 시도", "S10": "스캔·로그인·경계 차단 신호 연쇄", "S12": "요청 폭주"}
 
 
@@ -31,11 +31,19 @@ def format_message(level: str, ticket: Ticket, result: str, actions: list[Action
         lines.append(f"출발지: {ticket.src_ip}")
     if ticket.username:
         lines.append(f"계정: {ticket.username}")
+    if ticket.case_id == "S7" and "@" in ticket.group_key:
+        asset_id, _, file_key = ticket.group_key.partition("@")
+        lines.append(f"자산: {asset_id}")
+        lines.append(f"파일: {file_key}")
     checks = []
     for action in actions or []:
         if action.kind in ("boundary_block", "boundary_release"):
             if action.applied_verified:
                 checks.append("경계 차단 목록 반영 확인(시뮬레이션, 실제 패킷 차단 아님)")
+            continue
+        if action.kind in ("file_restore", "file_quarantine"):
+            if action.applied_verified:
+                checks.append("기준본과 일치 확인됨" if action.kind == "file_restore" else "격리되어 사라짐 확인됨")
             continue
         if action.applied_verified:
             checks.append("계정 잠금 상태 확인됨" if action.kind.startswith("account") else "포털 차단 목록에 반영됨")

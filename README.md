@@ -6,7 +6,7 @@
 
 ## 상태
 
-**M5 완료 — S1·S4·S8·S10·S12 다섯 케이스가 탐지부터 자동(또는 사람) 원복까지 자동으로 돕니다.** 파이썬 테스트 266건, 프론트 단위 23건, 브라우저 E2E 7건이 통과합니다.
+**M6 완료 — S1·S4·S7·S8·S10·S12 여섯 케이스가 탐지부터 자동(또는 사람) 원복까지 자동으로 돕니다.** 파이썬 테스트 293건, 프론트 단위 23건, 브라우저 E2E 7건이 통과합니다.
 
 실제 시험(2026-11-10, Graylog·포털·대응 엔진·경계 시뮬레이터를 실제로 띄워 확인):
 - **S1**: 공격 후 10초 만에 차단·효과 확인, TTL 30초 뒤 자동 원복, 같은 IP의 티켓 2개도 교착 없이 함께 원복.
@@ -15,7 +15,11 @@
 - **S12**(요청 폭주): 가벼운 요청 120건을 몰아 보내도 서비스가 멀쩡하면(헬스체크 3회 모두 기준 이내) 티켓도 차단도 만들지 않음 — "무해한 폭주는 차단 안 함" 설계를 실측으로 확인.
 - 시험 중 발견: Graylog의 S8·S10 정의가 같은 트래픽에 동시에 발동해 `ip_block`이 중복 기록되는 경쟁 조건 1건 → 엔진 판단·조치 구간을 직렬화해 수정(상세: [docs/PROVENANCE.md](docs/PROVENANCE.md)).
 
-나머지(Wazuh 파일 변조 복구 M6, N=5 반복 측정·원클릭 설치 M7)는 아직입니다. 단계별 계획은 [docs/PLAN.md](docs/PLAN.md), 구현할 동작의 기준은 [docs/BEHAVIOR-SPEC.md](docs/BEHAVIOR-SPEC.md)입니다.
+실제 시험(2026-11-10, 실제 Wazuh 매니저+에이전트를 띄워 확인 — **S7은 Active Response를 쓰지 않고 이 저장소의 설계(Wazuh FIM → `nobugs_tools.wazuh_bridge` → Graylog 집계 → 대응 엔진 웹훅)로 복구함**):
+- **S7**(홈페이지 변조): 공격 스크립트로 포털이 실제로 서빙하는 파일(`web/dist`)을 직접 바꿔치고 방문자 접근을 재현 → 실제 Wazuh 에이전트가 실시간 FIM으로 변조를 감지 → bridge가 기준본과 다를 때만 `tamper-signal`을 Graylog로 전달 → 변조 신호 + 방문자 접근(2xx)이 같은 자산·파일에서 10분 안에 모이면 Graylog가 엔진 웹훅을 호출 → 엔진이 포털 대응 API로 파일을 기준본으로 복구하고 티켓이 `restored`로 바로 넘어감(복구 자체가 원복이라 자동 원복은 없음) → 사람이 `close`로 마무리. 기준본에 없는 새 파일이면 격리(`quarantine`)로 분기.
+- 시험 중 발견·수정한 버그 2건(상세: [docs/PROVENANCE.md](docs/PROVENANCE.md)): ① Graylog 필드 값 계산이 `src_ip`를 필수로 요구해 `tamper-signal`(src_ip 없음) 쪽에서 이벤트 생성 자체가 조용히 실패 → S7만 `require_values=false`로 완화. ② 엔진 웹훅 알림 본문에 `asset_id`/`file_key`가 전혀 담겨 있지 않아 엔진이 매번 "보호 대상 아님"으로 조용히 무시(Graylog는 2xx로 보고 성공 처리) → 본문에 두 필드 추가.
+
+나머지(N=5 반복 측정·원클릭 설치 M7)는 아직입니다. 단계별 계획은 [docs/PLAN.md](docs/PLAN.md), 구현할 동작의 기준은 [docs/BEHAVIOR-SPEC.md](docs/BEHAVIOR-SPEC.md)입니다.
 
 ## 구성 (목표)
 
@@ -60,6 +64,19 @@ python -m nobugs_tools.graylog setup --engine-url http://host.docker.internal:52
 ```
 
 엔진은 기본이 **모의 실행**입니다(`NB_ENGINE_DRY_RUN=false` 또는 알림 본문의 `dry_run:false`로만 실제 차단). 자동 원복 대기 시간은 `NB_ENGINE_RELEASE_TTL`(기본 90초).
+
+### Wazuh FIM과 S7(홈페이지 변조)
+
+공식 `wazuh/wazuh-agent` 이미지는 없어 매니저와 같은 버전의 `.deb`로 직접 빌드한다(인덱서·대시보드는 쓰지 않음 — 매니저가 로컬에 쓰는 `alerts.json`을 bridge가 직접 읽는다). Active Response는 쓰지 않고 탐지만 매니저로 보낸 뒤 Graylog 집계·엔진 웹훅으로 복구한다.
+
+```powershell
+docker compose -f infra/docker-compose.yml --env-file .env up -d wazuh-manager wazuh-agent   # 매니저+에이전트(web/dist를 FIM으로 감시)
+.\.venv\Scripts\python.exe -m nobugs_portal.cli seed-baseline                                 # 지금 web/dist를 기준본으로 저장
+python -m nobugs_tools.wazuh_bridge --alerts-log infra/wazuh/logs/alerts/alerts.json --agent-prefix /nobugs/web-root   # 변조 신호를 Graylog로 중계
+python -m nobugs_tools.attacks s7 --file-key index.html                                       # 변조 재현(파일을 직접 바꾼 뒤 방문자 접근까지)
+```
+
+Git Bash에서 `--agent-prefix`처럼 `/`로 시작하는 인자는 Windows 경로로 자동 변환되니 `MSYS_NO_PATHCONV=1`을 붙인다.
 
 ### 프론트(React) 빌드·실행
 

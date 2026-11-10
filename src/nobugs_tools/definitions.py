@@ -12,8 +12,8 @@ EVENTS_STREAM_ID = "000000000000000000000002"       # 이벤트 저장 스트림
 MINUTE_MS = 60_000
 
 
-def _template(value: str) -> dict[str, Any]:
-    provider = {"type": "template-v1", "template": value, "require_values": True}
+def _template(value: str, require: bool = True) -> dict[str, Any]:
+    provider = {"type": "template-v1", "template": value, "require_values": require}
     return {"data_type": "string", "providers": [provider]}
 
 
@@ -73,9 +73,11 @@ def _distinct_at_least(series: str, minimum: int) -> dict[str, Any]:
 
 def _definition(title: str, description: str, case: str, query: str, group_by: list[str],
                 series: list[dict[str, Any]], conditions: dict[str, Any], window_min: float, every_ms: int,
-                grace_min: float, stream_id: str, notification_ids: list[str] | None) -> dict[str, Any]:
-    fields = {"src_ip": _template("${source.src_ip}"), "case_id": _template(case),
+                grace_min: float, stream_id: str, notification_ids: list[str] | None,
+                extra_fields: dict[str, Any] | None = None, require_src_ip: bool = True) -> dict[str, Any]:
+    fields = {"src_ip": _template("${source.src_ip}", require_src_ip), "case_id": _template(case),
               "username": _template("${source.username}") if "username" in group_by else _template("-")}
+    fields.update(extra_fields or {})
     return {
         "title": title, "description": description, "priority": 2, "alert": True,
         "config": {"type": "aggregation-v1", "query": query, "query_parameters": [], "filters": [],
@@ -103,6 +105,19 @@ def s4_login_failure_then_success(stream_id: str = DEFAULT_STREAM_ID,
         "같은 계정·출발지에서 로그인 실패(401)와 성공이 모두 있고 합이 10분 안에 6회 이상.", "S4",
         f"{FAILED_LOGIN} OR rule:login-success", ["username", "src_ip"], [_COUNT, _KINDS],
         _and(_count_over(5), _distinct_at_least("card(rule)", 2)), 10, MINUTE_MS, 10, stream_id, notification_ids)
+
+
+def s7_tamper_then_access(stream_id: str = DEFAULT_STREAM_ID,
+                          notification_ids: list[str] | None = None) -> dict[str, Any]:
+    """S7: 같은 자산·파일 키에 변조 신호(Wazuh FIM, nobugs_tools.wazuh_bridge가 중계)와 방문자의 정상 접근(2xx)이
+    모두 있으면(10분) 발동. 기준본과 같은 변경은 bridge가 애초에 보내지 않는다(여기서는 더 거르지 않는다)."""
+    return _definition(
+        "S7 홈페이지 변조 (asset_id+file_key)",
+        "같은 자산·파일에 변조 신호와 방문자 접근(2xx)이 모두 10분 안에 있음.", "S7",
+        "rule:tamper-signal OR (rule:file-access AND status:200)", ["asset_id", "file_key"], [_COUNT, _KINDS],
+        _and(_count_over(1), _distinct_at_least("card(rule)", 2)), 10, 30_000, 10, stream_id, notification_ids,
+        extra_fields={"asset_id": _template("${source.asset_id}"), "file_key": _template("${source.file_key}")},
+        require_src_ip=False)
 
 
 def s8_scan_then_login(stream_id: str = DEFAULT_STREAM_ID,
@@ -137,7 +152,8 @@ def s12_request_flood(stream_id: str = DEFAULT_STREAM_ID,
 def engine_notification(url: str, key: str, live: bool = False) -> dict[str, Any]:
     """Graylog -> 대응 엔진 웹훅 알림. live=False면 본문에 dry_run:true를 실어 모의 실행으로 보낸다."""
     body = ('{"event_id":"${event.id}","case_id":"${event.fields.case_id}","src_ip":"${event.fields.src_ip}",'
-            '"username":"${event.fields.username}","condition_met_at":"${event.timestamp}",'
+            '"username":"${event.fields.username}","asset_id":"${event.fields.asset_id}",'
+            '"file_key":"${event.fields.file_key}","condition_met_at":"${event.timestamp}",'
             '"detected_at":"${event.timestamp_processing}","dry_run":' + ("false" if live else "true") + "}")
     return {
         "title": "nobugs 대응 엔진 웹훅",
@@ -149,5 +165,5 @@ def engine_notification(url: str, key: str, live: bool = False) -> dict[str, Any
     }
 
 
-ALL_DEFINITIONS = {"S1": s1_login_bruteforce, "S4": s4_login_failure_then_success, "S8": s8_scan_then_login,
-                   "S10": s10_three_layer, "S12": s12_request_flood}
+ALL_DEFINITIONS = {"S1": s1_login_bruteforce, "S4": s4_login_failure_then_success, "S7": s7_tamper_then_access,
+                   "S8": s8_scan_then_login, "S10": s10_three_layer, "S12": s12_request_flood}

@@ -38,6 +38,8 @@ class EngineSettings:
     health_baseline_ms: float = 200.0
     health_timeout_seconds: float = 5.0
     discord_webhook_url: str = ""                   # 비워 두면 외부로 보내지 않는다(로컬 수신함만)
+    # S7: 실제 복구·격리는 이 자산 id에만 한다(실수로 엉뚱한 자산을 건드리지 않도록)
+    live_asset_ids: tuple[str, ...] = ("nobugs-portal",)
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> EngineSettings:
@@ -65,4 +67,6 @@ class EngineSettings:
             health_baseline_ms=float(e.get("NB_ENGINE_HEALTH_BASELINE_MS", d.health_baseline_ms)),
             health_timeout_seconds=float(e.get("NB_ENGINE_HEALTH_TIMEOUT", d.health_timeout_seconds)),
             discord_webhook_url=e.get("NB_ENGINE_DISCORD_WEBHOOK", ""),
+            live_asset_ids=tuple(x.strip() for x in e.get("NB_ENGINE_LIVE_ASSET_IDS", "").split(",") if x.strip())
+            or d.live_asset_ids,
         )

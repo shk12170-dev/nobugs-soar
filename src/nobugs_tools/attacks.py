@@ -1,7 +1,7 @@
 """공격 재현 스크립트(자기 포털·루프백 전용). 탐지·대응 시험용 입력을 만든다.
 
 사용: python -m nobugs_tools.attacks s1 --source 127.0.0.2 --user victim_a --count 10
-      s4 | s8 | s10 | s12 도 같은 방식(--help 참고)
+      s4 | s7 | s8 | s10 | s12 도 같은 방식(--help 참고)
 출발지는 127.x 주소만, 대상은 루프백만 허용한다(실수로 다른 서버를 공격하지 않도록).
 """
 from __future__ import annotations
@@ -16,6 +16,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from http.cookiejar import CookieJar
+from pathlib import Path
 
 
 def _assert_loopback(host: str, what: str) -> None:
@@ -101,6 +102,23 @@ def s4_failure_then_success(base_url: str, *, username: str, password: str, fail
     return statuses
 
 
+def s7_deface(base_url: str, web_root: str, file_key: str, *, content: str = "<!doctype html>defaced by drill",
+             source: str = "127.0.0.2") -> dict:
+    """공격자가 서버 쓰기 권한을 얻어 웹 루트 파일을 바꿔친 상황을 재현한다(HTTP 취약점이 아니라 직접 파일 변경).
+
+    그다음 평소처럼 방문자가 그 경로에 접근한 것도 함께 남긴다(S7은 변조 신호 + 방문자 접근 2xx가 둘 다 있어야 발동).
+    """
+    _assert_loopback(urllib.parse.urlparse(base_url).hostname or "", "대상")
+    target = Path(web_root) / file_key
+    if not target.is_file():
+        raise ValueError(f"대상 파일이 없습니다(먼저 포털 프론트를 빌드·배포하세요): {target}")
+    target.write_text(content, encoding="utf-8")
+    opener = bound_opener(source)
+    path = "/" if file_key == "index.html" else "/" + file_key
+    status, _ = _call(opener, base_url, "GET", path)
+    return {"file_key": file_key, "written": True, "visit_status": status}
+
+
 SCAN_PATHS = ("/.env", "/wp-login.php", "/phpmyadmin", "/backup.zip", "/config.php", "/.git/config",
               "/server-status", "/.ssh/id_rsa")      # 포털에 없는 경로만(실제 SPA 라우트는 피한다)
 
@@ -174,6 +192,11 @@ def main(argv: list[str] | None = None) -> int:
     s4.add_argument("--password", required=True, help="시험 계정의 실제 비밀번호")
     s4.add_argument("--failures", type=int, default=5)
 
+    s7 = sub.add_parser("s7", help="홈페이지 변조(웹 루트 파일을 직접 바꾼 뒤 방문자 접근 재현)")
+    common(s7)
+    s7.add_argument("--web-root", default="web/dist")
+    s7.add_argument("--file-key", default="index.html")
+
     s8 = sub.add_parser("s8", help="웹 스캔 뒤 로그인 시도")
     common(s8)
 
@@ -194,6 +217,9 @@ def main(argv: list[str] | None = None) -> int:
         out = s4_failure_then_success(a.base, username=a.user, password=a.password, failures=a.failures,
                                       source=a.source)
         print(f"S4 실패 {a.failures}회 뒤 성공 시도, 응답: {out} (출발지 {a.source}, 계정 {a.user})")
+    elif a.case == "s7":
+        out = s7_deface(a.base, a.web_root, a.file_key, source=a.source)
+        print(f"S7 변조 재현: {a.file_key} 덮어씀, 방문자 접근 응답 {out['visit_status']} (출발지 {a.source})")
     elif a.case == "s8":
         print(f"S8 스캔·로그인 시도 응답: {s8_scan_then_login(a.base, source=a.source)} (출발지 {a.source})")
     elif a.case == "s10":

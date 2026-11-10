@@ -51,6 +51,35 @@ services:
     networks: [soc]
     restart: unless-stopped
 
+  # S7(홈페이지 변조) 탐지. 인덱서·대시보드는 쓰지 않는다 — 알림은 알림 로그 파일을 nobugs_tools.wazuh_bridge가
+  # 직접 읽어 Graylog로 넘긴다(이 저장소의 상관분석·대응은 Graylog 집계 + 엔진 웹훅 경로로 하나로 통일한다).
+  wazuh-manager:
+    image: wazuh/wazuh-manager:4.9.0
+    mem_limit: 1g
+    environment: { TZ: Asia/Seoul }
+    ports:
+      - "127.0.0.1:1514:1514/tcp"      # 에이전트 이벤트
+      - "127.0.0.1:1515:1515/tcp"      # 에이전트 등록(authd)
+    volumes:
+      - wazuh_etc:/var/ossec/etc
+      - ./wazuh/logs:/var/ossec/logs   # 호스트에서 alerts.json을 읽기 위한 바인드 마운트(브리지 도구용)
+    networks: [soc]
+    restart: unless-stopped
+
+  wazuh-agent:
+    build: ./wazuh/agent
+    mem_limit: 256m
+    depends_on: [wazuh-manager]
+    environment:
+      WAZUH_MANAGER: wazuh-manager
+      NB_WEB_ROOT: /nobugs/web-root
+      NB_AGENT_NAME: nobugs-portal
+    volumes:
+      - ../web/dist:/nobugs/web-root    # 포털이 실제로 서빙하는 폴더(S7 감시 대상)
+      - wazuh_agent_etc:/var/ossec/etc
+    networks: [soc]
+    restart: unless-stopped
+
 networks:
   soc:
     name: nobugs-soc-net
@@ -59,3 +88,5 @@ volumes:
   mongo_data:
   os_data:
   graylog_data:
+  wazuh_etc:
+  wazuh_agent_etc:

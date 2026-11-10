@@ -26,6 +26,9 @@ class PortalControl(Protocol):
     def blocked_ips(self) -> set[str]: ...
     def lock_account(self, username: str, idempotency_key: str) -> dict: ...
     def account_state(self, username: str) -> dict: ...
+    def file_state(self, file_key: str) -> dict: ...
+    def restore_file(self, file_key: str, idempotency_key: str) -> dict: ...
+    def quarantine_file(self, file_key: str, idempotency_key: str) -> dict: ...
 
 
 class BoundaryControl(Protocol):
@@ -70,6 +73,15 @@ class HttpPortalControl:
 
     def account_state(self, username: str) -> dict:
         return self._call("GET", "/api/v1/response/accounts/" + urllib.parse.quote(username, safe=""))
+
+    def file_state(self, file_key: str) -> dict:
+        return self._call("GET", "/api/v1/response/files/" + urllib.parse.quote(file_key, safe="/"))
+
+    def restore_file(self, file_key: str, idempotency_key: str) -> dict:
+        return self._call("POST", "/api/v1/response/files/restore", {"file_key": file_key}, idempotency_key)
+
+    def quarantine_file(self, file_key: str, idempotency_key: str) -> dict:
+        return self._call("POST", "/api/v1/response/files/quarantine", {"file_key": file_key}, idempotency_key)
 
 
 class HttpBoundaryControl:

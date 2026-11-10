@@ -13,6 +13,7 @@ import sys
 
 from sqlalchemy import func, select
 
+from . import baseline
 from .config import Settings
 from .db import Database
 from .models import User
@@ -65,15 +66,20 @@ def main(argv: list[str] | None = None, settings: Settings | None = None) -> int
     make.add_argument("--role", choices=ROLES, default="citizen")
     make.add_argument("--password-env", help="비밀번호가 든 환경변수 이름(없으면 숨김 입력)")
     sub.add_parser("seed-demo")
+    sub.add_parser("seed-baseline", help="S7: 지금 웹 루트를 기준본으로 저장(기존 기준본은 덮어씀)")
     args = parser.parse_args(argv)
 
-    db = Database((settings or Settings.from_env()).database_url)
+    s = settings or Settings.from_env()
+    db = Database(s.database_url)
     db.create_all()
     try:
         if args.command == "create-user":
             password = os.environ.get(args.password_env, "") if args.password_env else getpass.getpass("비밀번호: ")
             create_user(db, args.username, args.display_name or args.username, args.role, password)
             print(f"계정을 만들었습니다: {args.username} ({args.role})")
+        elif args.command == "seed-baseline":
+            copied = baseline.snapshot(s.frontend_dist, s.baseline_dir)
+            print(f"기준본 {len(copied)}개 파일을 {s.baseline_dir}에 저장했습니다: {', '.join(copied)}")
         else:
             for username, password in seed_demo(db).items():
                 print(f"{username}  {password}")

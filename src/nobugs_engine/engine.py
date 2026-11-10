@@ -31,8 +31,10 @@ class Detection(BaseModel):
 
     event_id: str = Field(min_length=1, max_length=100)
     case_id: str = Field(min_length=1, max_length=10)
-    src_ip: str = Field(max_length=45)
+    src_ip: str = Field(default="", max_length=45)        # S7(자산+파일 키로 묶음)은 출발지 IP가 없을 수 있다
     username: str | None = Field(default=None, max_length=40)
+    asset_id: str | None = Field(default=None, max_length=80)    # S7
+    file_key: str | None = Field(default=None, max_length=200)   # S7
     count: int | None = None
     condition_met_at: str | None = None
     detected_at: str | None = None
@@ -52,17 +54,20 @@ IP_KINDS = ("ip_block", "boundary_block")
 @dataclass(frozen=True)
 class CaseSpec:
     title: str
-    kind: str            # ip_user | account | scan | flood
+    kind: str            # ip_user | account | scan | flood | file
 
     def group_key(self, d: Detection, ip: str) -> str:
         if self.kind in ("scan", "flood"):
             return ip
+        if self.kind == "file":
+            return f"{d.asset_id or '-'}@{d.file_key or '-'}"
         return f"{d.username or '-'}@{ip}"
 
 
 CASES: dict[str, CaseSpec] = {
     "S1": CaseSpec("로그인 반복 실패(무차별 대입)", "ip_user"),
     "S4": CaseSpec("로그인 실패 뒤 성공(계정 탈취 의심)", "account"),
+    "S7": CaseSpec("홈페이지 변조", "file"),
     "S8": CaseSpec("웹 스캔 뒤 로그인 시도", "scan"),
     "S10": CaseSpec("스캔·로그인·경계 차단 신호 연쇄", "scan"),
     "S12": CaseSpec("요청 폭주", "flood"),
@@ -105,6 +110,9 @@ class Engine:
         spec = CASES.get(d.case_id)
         if spec is None:
             return {"verdict": "unsupported_case", "case_id": d.case_id}
+        dry_run = self.settings.default_dry_run if d.dry_run is None else d.dry_run
+        if spec.kind == "file":
+            return self._handle_file(d, dry_run)
         try:
             ip = str(ipaddress.ip_address(d.src_ip))
         except ValueError:
@@ -113,7 +121,6 @@ class Engine:
             return {"verdict": "invalid_input", "detail": "username"}
         if self.is_protected(ip):
             return {"verdict": "protected_source", "src_ip": ip, "no_action": True}
-        dry_run = self.settings.default_dry_run if d.dry_run is None else d.dry_run
         prefix = self.settings.live_account_prefix
         if spec.kind == "account" and not dry_run and not (d.username or "").startswith(prefix):
             return {"verdict": "protected_account", "no_action": True,
@@ -146,6 +153,78 @@ class Engine:
         verdict, kinds = decide(samples, self.settings.health_baseline_ms)
         return verdict, kinds, [None if x.ms is None else round(x.ms, 1) for x in samples]
 
+    # ---- S7: 홈페이지 변조 ----
+    def _handle_file(self, d: Detection, dry_run: bool) -> dict:
+        if not d.file_key:
+            return {"verdict": "invalid_input", "detail": "file_key"}
+        if not dry_run and (d.asset_id or "") not in self.settings.live_asset_ids:
+            return {"verdict": "protected_asset", "no_action": True,
+                    "detail": f"실제 복구는 {', '.join(self.settings.live_asset_ids)} 자산에만 허용"}
+        spec = CASES["S7"]
+        state = self._file_state(d.file_key)
+        if state is None:
+            return {"verdict": "failed", "detail": "파일 상태를 확인할 수 없음"}
+        if state.get("matches_baseline"):
+            # 변조 신호가 늦게 왔거나 이미 복구됐다 — 새로 조치할 것이 없다
+            return {"verdict": "duplicate", "detail": "이미 기준본과 같음"}
+        kind = "file_restore" if state.get("known_to_baseline") else "file_quarantine"
+        with self.store.session() as s:
+            ticket = self._ticket_for(s, d, spec, "")
+            if d.event_id not in ticket.event_ids:
+                ticket.event_ids = [*ticket.event_ids, d.event_id]
+                s.commit()
+            if self._has(s, ticket, kind, dry_run):
+                return {"verdict": "duplicate", "ticket_id": ticket.id, "status": ticket.status}
+            if dry_run:
+                action = self.store.add_action(s, ticket, kind=kind, target=d.file_key, result="dry_run",
+                                               detail="모의 실행: 아무것도 호출하지 않았다", finished_at=self.clock())
+                self.notifier.send(format_message("warn", ticket, "dry_run", [action], now=self._aware()))
+                return {"verdict": "dry_run", "ticket_id": ticket.id, "status": ticket.status}
+            action = self._attempt_file_action(s, ticket, kind, d.file_key)
+            # 복구·격리는 나중에 풀어야 하는 조치가 아니다 — 끝나면 그 자체가 결과다(action.active는 늘 False)
+            ok = action.result in ("applied", "already_applied")
+            if ok and action.effect_verified is True:
+                self.store.advance(s, ticket, "restored")   # S7은 복구·격리 자체가 원복이다(사람이 닫는다)
+            elif ok and ticket.status == "open":
+                self.store.advance(s, ticket, "responding")
+            self.notifier.send(format_message("error" if not ok else "warn", ticket, action.result,
+                                              [action], now=self._aware()))
+            return {"verdict": "responded" if ok else "failed", "ticket_id": ticket.id,
+                    "status": ticket.status, "result": action.result, "actions": [f"{action.kind}:{action.result}"],
+                    "applied_verified": action.applied_verified, "effect_verified": action.effect_verified}
+
+    def _attempt_file_action(self, s: Session, ticket: Ticket, kind: str, file_key: str) -> Action:
+        requested, detail = self.clock(), ""
+        call = self.portal.restore_file if kind == "file_restore" else self.portal.quarantine_file
+        try:
+            response = call(file_key, f"{ticket.id}-{kind}-{file_key.replace('/', '_')}")
+            result = "applied" if response.get("changed") else "already_applied"
+        except PortalError as exc:
+            return self._record(s, ticket, kind, file_key, "failed", requested, applied_verified=False,
+                                active=False, detail=f"포털이 거절함: {exc}"[:300])
+        except PortalUncertain as exc:
+            result, detail = "uncertain", f"{exc} (자동 재시도 없음)"
+        verify = self._file_state(file_key)
+        if kind == "file_restore":
+            effect = None if verify is None else verify.get("matches_baseline") is True
+        else:
+            effect = None if verify is None else verify.get("current_hash") is None   # 파일이 사라졌다
+        if result == "uncertain":
+            # 불확실한 결과: 실제 파일 상태를 다시 조회해 대조한다(자동 재시도 없음)
+            if not effect:
+                return self._record(s, ticket, kind, file_key, "uncertain", requested, applied_verified=False,
+                                    active=False, detail=detail + " → 재조회에서도 확인 불가")
+            result, detail = "applied", detail + " → 재조회로 적용 확인"
+        return self._record(s, ticket, kind, file_key, result, requested, applied_verified=effect,
+                            effect_verified=effect, active=False, detail=detail,
+                            effect_at=self.clock() if effect is not None else None)
+
+    def _file_state(self, file_key: str) -> dict | None:
+        try:
+            return self.portal.file_state(file_key)
+        except (PortalError, PortalUncertain):
+            return None
+
     # ---- 티켓 ----
     def _ticket_for(self, s: Session, d: Detection, spec: CaseSpec, ip: str) -> Ticket:
         cases = SCAN_CASES if spec.kind == "scan" else (d.case_id,)
@@ -162,7 +241,7 @@ class Engine:
                     self.store.upgrade_case(s, existing, "S10")     # 스캔이 경계 신호까지 번졌다
                 return existing
         ticket, _ = self.store.open_or_get(
-            s, d.case_id, key, src_ip=ip, username=d.username,
+            s, d.case_id, key, src_ip=ip or None, username=d.username,
             condition_met_at=parse_time(d.condition_met_at), detected_at=parse_time(d.detected_at))
         return ticket
 
