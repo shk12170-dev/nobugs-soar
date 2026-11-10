@@ -1,15 +1,11 @@
 """설치·관제 설정·공격 재현 도구의 시험."""
 import json
 import threading
-import time
-from dataclasses import replace
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 import pytest
-import uvicorn
 from conftest import PASSWORD, read_events
 
-from nobugs_portal.app import create_public_app
 from nobugs_tools import attacks, definitions, graylog, make_env
 
 # ---- 탐지 정의 ----
@@ -177,23 +173,6 @@ def test_load_env_reads_file_without_overriding_real_environment(tmp_path, monke
 
 
 # ---- 공격 재현(실제 서버) ----
-
-
-@pytest.fixture
-def live_portal(state):
-    app = create_public_app(state=type(state)(settings=replace(state.settings, login_rate_limit=1000),
-                                              db=state.db, events=state.events))
-    server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=0, log_level="warning"))
-    thread = threading.Thread(target=server.run, daemon=True)
-    thread.start()
-    for _ in range(100):
-        if server.started:
-            break
-        time.sleep(0.05)
-    port = server.servers[0].sockets[0].getsockname()[1]
-    yield f"http://127.0.0.1:{port}"
-    server.should_exit = True
-    thread.join(timeout=5)
 
 
 def test_s1_attack_sends_failed_logins_seen_as_the_chosen_source(live_portal, settings):

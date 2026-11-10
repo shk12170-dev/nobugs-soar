@@ -23,7 +23,20 @@ def build_values() -> dict[str, str]:
         "NB_GRAYLOG_ADMIN_PASSWORD": admin_password,
         "NB_GRAYLOG_URL": "http://127.0.0.1:9100",
         "NB_GELF_PORT": "12301",
+        # Graylog -> 대응 엔진 웹훅 인증 키 / 엔진 -> 포털 대응 API 키(서로 다른 값)
+        "NB_ENGINE_KEY": secrets.token_urlsafe(24),
+        "NB_RESPONSE_API_KEY": secrets.token_urlsafe(24),
     }
+
+
+def add_missing(path: Path) -> list[str]:
+    """기존 .env는 건드리지 않고, 새로 필요해진 키만 덧붙인다. 덧붙인 키 이름을 돌려준다."""
+    have = {line.split("=", 1)[0] for line in path.read_text(encoding="utf-8").splitlines() if "=" in line}
+    new = {k: v for k, v in build_values().items() if k not in have}
+    if new:
+        with path.open("a", encoding="utf-8") as f:
+            f.write("".join(f"{k}={v}\n" for k, v in new.items()))
+    return list(new)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -33,7 +46,9 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     path = Path(args.path)
     if path.exists() and not args.force:
-        print(f"{path} 가 이미 있어 그대로 둡니다(--force로 덮어쓰기).")
+        added = add_missing(path)
+        suffix = f" 새 키만 덧붙였습니다: {', '.join(added)}." if added else ""
+        print(f"{path} 가 이미 있어 그대로 둡니다(--force로 덮어쓰기).{suffix}")
         return 0
     path.write_text("".join(f"{k}={v}\n" for k, v in build_values().items()), encoding="utf-8")
     print(f"{path} 를 만들었습니다. 비밀번호는 이 파일에만 있습니다.")

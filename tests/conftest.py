@@ -2,8 +2,12 @@
 from __future__ import annotations
 
 import json
+import threading
+import time
+from dataclasses import replace
 
 import pytest
+import uvicorn
 from fastapi.testclient import TestClient
 
 from nobugs_portal.app import create_public_app
@@ -141,3 +145,23 @@ def read_events(settings: Settings) -> list[dict]:
             return [json.loads(line) for line in f if line.strip()]
     except FileNotFoundError:
         return []
+
+
+@pytest.fixture
+def live_portal(state):
+    """실제 소켓으로 도는 일반 포털(루프백). 출발지 주소 지정 시험용."""
+    app = create_public_app(state=type(state)(settings=replace(state.settings, login_rate_limit=1000),
+                                              db=state.db, events=state.events))
+    server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=0, log_level="warning"))
+    thread = threading.Thread(target=server.run, daemon=True)
+    thread.start()
+    for _ in range(100):
+        if server.started:
+            break
+        time.sleep(0.05)
+    port = server.servers[0].sockets[0].getsockname()[1]
+    yield f"http://127.0.0.1:{port}"
+    server.should_exit = True
+    thread.join(timeout=5)
+
+

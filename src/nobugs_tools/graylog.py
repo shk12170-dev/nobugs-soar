@@ -16,7 +16,7 @@ import urllib.request
 from pathlib import Path
 from typing import Any
 
-from .definitions import ALL_DEFINITIONS
+from .definitions import ALL_DEFINITIONS, engine_notification
 
 ROOT = Path(__file__).resolve().parents[2]
 GELF_UDP = ("portal GELF UDP", "org.graylog2.inputs.gelf.udp.GELFUDPInput")
@@ -90,6 +90,24 @@ class GraylogClient:
                   {**definition, "id": existing["id"]})
         return existing["id"], False
 
+    # ---- 알림 ----
+    def ensure_allowlist(self, url: str) -> bool:
+        """Graylog는 허용 목록에 없는 주소로 알림을 보내지 않는다. 없으면 추가한다. 추가했는지 돌려준다."""
+        current = self.call("GET", "/api/system/urlwhitelist")
+        if any(e.get("value") == url for e in current.get("entries", [])):
+            return False
+        current.setdefault("entries", []).append({"id": "nobugs-engine", "title": "nobugs 대응 엔진", "value": url,
+                                                  "type": "literal"})
+        self.call("PUT", "/api/system/urlwhitelist", current)
+        return True
+
+    def ensure_notification(self, notification: dict[str, Any]) -> str:
+        """같은 제목의 알림이 있으면 지우고 새로 만든다(수정 API가 형식에 까다로워 교체 방식). 알림 id를 돌려준다."""
+        for existing in self.call("GET", "/api/events/notifications?per_page=200")["notifications"]:
+            if existing["title"] == notification["title"]:
+                self.call("DELETE", f"/api/events/notifications/{existing['id']}")
+        return self.call("POST", "/api/events/notifications", notification)["id"]
+
     def recent_events(self, minutes: int = 15, per_page: int = 50) -> list[dict[str, Any]]:
         body = {"query": "", "filter": {"alerts": "include"}, "page": 1, "per_page": per_page,
                 "timerange": {"type": "relative", "range": minutes * 60}}
@@ -104,12 +122,17 @@ def client_from_env(env: dict[str, str] | None = None) -> GraylogClient:
     return GraylogClient(env.get("NB_GRAYLOG_URL", "http://127.0.0.1:9100"), env["NB_GRAYLOG_ADMIN_PASSWORD"])
 
 
-def setup(client: GraylogClient) -> None:
+def setup(client: GraylogClient, engine_url: str | None = None, engine_key: str = "", live: bool = False) -> None:
     client.wait_ready()
     created = client.ensure_gelf_inputs()
     print("입력:", ", ".join(created) if created else "이미 있음")
+    notification_ids: list[str] = []
+    if engine_url:
+        client.ensure_allowlist(engine_url)
+        notification_ids = [client.ensure_notification(engine_notification(engine_url, engine_key, live))]
+        print(f"알림: 엔진 웹훅 연결 ({'실제 조치' if live else '모의 실행'} 모드)")
     for case, build in ALL_DEFINITIONS.items():
-        definition_id, is_new = client.ensure_event_definition(build())
+        definition_id, is_new = client.ensure_event_definition(build(notification_ids=notification_ids))
         print(f"탐지 정의 {case}: {'생성' if is_new else '갱신'} ({definition_id})")
 
 
@@ -117,11 +140,13 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="nobugs_tools.graylog")
     parser.add_argument("command", choices=["setup", "events"])
     parser.add_argument("--minutes", type=int, default=15)
+    parser.add_argument("--engine-url", help="엔진 웹훅 주소(예: http://host.docker.internal:5200/webhook/graylog)")
+    parser.add_argument("--live", action="store_true", help="실제 조치 모드(기본은 모의 실행)")
     args = parser.parse_args(argv)
     try:
         client = client_from_env()
         if args.command == "setup":
-            setup(client)
+            setup(client, args.engine_url, load_env().get("NB_ENGINE_KEY", ""), args.live)
         else:
             events = client.recent_events(args.minutes)
             print(f"최근 {args.minutes}분 이벤트 {len(events)}건")

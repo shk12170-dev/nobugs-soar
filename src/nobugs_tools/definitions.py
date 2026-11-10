@@ -59,4 +59,19 @@ def s1_login_bruteforce(stream_id: str = DEFAULT_STREAM_ID,
     }
 
 
+def engine_notification(url: str, key: str, live: bool = False) -> dict[str, Any]:
+    """Graylog -> 대응 엔진 웹훅 알림. live=False면 본문에 dry_run:true를 실어 모의 실행으로 보낸다."""
+    body = ('{"event_id":"${event.id}","case_id":"${event.fields.case_id}","src_ip":"${event.fields.src_ip}",'
+            '"username":"${event.fields.username}","condition_met_at":"${event.timestamp}",'
+            '"detected_at":"${event.timestamp_processing}","dry_run":' + ("false" if live else "true") + "}")
+    return {
+        "title": "nobugs 대응 엔진 웹훅",
+        "description": "탐지 이벤트를 대응 엔진으로 보낸다. 인증은 X-Engine-Key 헤더.",
+        "config": {"type": "http-notification-v2", "url": url, "method": "POST", "content_type": "JSON",
+                   "time_zone": "UTC", "headers": f"X-Engine-Key: {key}", "basic_auth": None,
+                   "api_key_as_header": False, "api_key": "", "api_secret": None, "skip_tls_verification": False,
+                   "body_template": body},
+    }
+
+
 ALL_DEFINITIONS = {"S1": s1_login_bruteforce}
