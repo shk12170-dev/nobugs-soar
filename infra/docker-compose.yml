@@ -80,6 +80,28 @@ services:
     networks: [soc]
     restart: unless-stopped
 
+  # S1 알림을 n8n이 먼저 받아 엔진 웹훅으로 넘기고(이미 검증된 티켓·차단 로직을 그대로 쓴다) Discord 알림도
+  # n8n에서 직접 보낸다 — 강사 과제의 "탐지 → n8n 자동 대응" 흐름을 보여주는 용도.
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:latest
+    mem_limit: 1536m    # latest n8n은 Node 힙이 512m에서 OOM-crash(실제로 겪음) - 여유 있게 잡는다
+    environment:
+      TZ: Asia/Seoul
+      N8N_PROTOCOL: http
+      N8N_HOST: n8n
+      N8N_PORT: "5678"
+      WEBHOOK_URL: http://n8n:5678/
+      N8N_BASIC_AUTH_ACTIVE: "true"
+      N8N_BASIC_AUTH_USER: ${NB_N8N_USER:?make_env로 .env를 먼저 만드세요}
+      N8N_BASIC_AUTH_PASSWORD: ${NB_N8N_PASSWORD:?make_env로 .env를 먼저 만드세요}
+      N8N_RUNNERS_ENABLED: "true"
+    ports:
+      - "127.0.0.1:5678:5678"
+    volumes: [n8n_data:/home/node/.n8n]
+    networks: [soc]
+    extra_hosts: ["host.docker.internal:host-gateway"]
+    restart: unless-stopped
+
 networks:
   soc:
     name: nobugs-soc-net
@@ -90,3 +112,4 @@ volumes:
   graylog_data:
   wazuh_etc:
   wazuh_agent_etc:
+  n8n_data:

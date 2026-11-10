@@ -16,7 +16,7 @@ import urllib.request
 from pathlib import Path
 from typing import Any
 
-from .definitions import ALL_DEFINITIONS, engine_notification
+from .definitions import ALL_DEFINITIONS, engine_notification, n8n_relay_notification
 
 ROOT = Path(__file__).resolve().parents[2]
 GELF_UDP = ("portal GELF UDP", "org.graylog2.inputs.gelf.udp.GELFUDPInput")
@@ -122,7 +122,9 @@ def client_from_env(env: dict[str, str] | None = None) -> GraylogClient:
     return GraylogClient(env.get("NB_GRAYLOG_URL", "http://127.0.0.1:9100"), env["NB_GRAYLOG_ADMIN_PASSWORD"])
 
 
-def setup(client: GraylogClient, engine_url: str | None = None, engine_key: str = "", live: bool = False) -> None:
+def setup(client: GraylogClient, engine_url: str | None = None, engine_key: str = "", live: bool = False,
+         n8n_url: str | None = None, n8n_key: str = "") -> None:
+    """n8n_url을 주면 S1만 n8n 웹훅으로 보내고(n8n이 엔진 웹훅으로 넘긴다), 나머지 케이스는 그대로 엔진 직결이다."""
     client.wait_ready()
     created = client.ensure_gelf_inputs()
     print("입력:", ", ".join(created) if created else "이미 있음")
@@ -131,8 +133,14 @@ def setup(client: GraylogClient, engine_url: str | None = None, engine_key: str 
         client.ensure_allowlist(engine_url)
         notification_ids = [client.ensure_notification(engine_notification(engine_url, engine_key, live))]
         print(f"알림: 엔진 웹훅 연결 ({'실제 조치' if live else '모의 실행'} 모드)")
+    s1_notification_ids = notification_ids
+    if n8n_url:
+        client.ensure_allowlist(n8n_url)
+        s1_notification_ids = [client.ensure_notification(n8n_relay_notification(n8n_url, n8n_key, live))]
+        print("알림: S1만 n8n 웹훅 경유로 연결")
     for case, build in ALL_DEFINITIONS.items():
-        definition_id, is_new = client.ensure_event_definition(build(notification_ids=notification_ids))
+        ids = s1_notification_ids if case == "S1" else notification_ids
+        definition_id, is_new = client.ensure_event_definition(build(notification_ids=ids))
         print(f"탐지 정의 {case}: {'생성' if is_new else '갱신'} ({definition_id})")
 
 
@@ -142,11 +150,14 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--minutes", type=int, default=15)
     parser.add_argument("--engine-url", help="엔진 웹훅 주소(예: http://host.docker.internal:5200/webhook/graylog)")
     parser.add_argument("--live", action="store_true", help="실제 조치 모드(기본은 모의 실행)")
+    parser.add_argument("--n8n-url", help="S1만 이 n8n 웹훅 주소로 보낸다(예: http://n8n:5678/webhook/s1)")
     args = parser.parse_args(argv)
     try:
         client = client_from_env()
         if args.command == "setup":
-            setup(client, args.engine_url, load_env().get("NB_ENGINE_KEY", ""), args.live)
+            env = load_env()
+            setup(client, args.engine_url, env.get("NB_ENGINE_KEY", ""), args.live, args.n8n_url,
+                 env.get("NB_N8N_WEBHOOK_KEY", ""))
         else:
             events = client.recent_events(args.minutes)
             print(f"최근 {args.minutes}분 이벤트 {len(events)}건")

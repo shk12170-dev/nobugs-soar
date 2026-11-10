@@ -27,6 +27,9 @@ def build_values() -> dict[str, str]:
         "NB_ENGINE_KEY": secrets.token_urlsafe(24),
         "NB_RESPONSE_API_KEY": secrets.token_urlsafe(24),
         "NB_BOUNDARY_KEY": secrets.token_urlsafe(24),       # 경계 시뮬레이터(S10) 인증 키
+        "NB_N8N_USER": "admin",
+        "NB_N8N_PASSWORD": secrets.token_urlsafe(18),       # n8n 관리 화면 로그인
+        "NB_N8N_WEBHOOK_KEY": secrets.token_urlsafe(24),    # Graylog -> n8n 웹훅 인증 키
     }
 
 

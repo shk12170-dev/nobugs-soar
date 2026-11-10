@@ -149,19 +149,35 @@ def s12_request_flood(stream_id: str = DEFAULT_STREAM_ID,
         notification_ids)
 
 
+def _detection_body(live: bool) -> str:
+    return ('{"event_id":"${event.id}","case_id":"${event.fields.case_id}","src_ip":"${event.fields.src_ip}",'
+           '"username":"${event.fields.username}","asset_id":"${event.fields.asset_id}",'
+           '"file_key":"${event.fields.file_key}","condition_met_at":"${event.timestamp}",'
+           '"detected_at":"${event.timestamp_processing}","dry_run":' + ("false" if live else "true") + "}")
+
+
 def engine_notification(url: str, key: str, live: bool = False) -> dict[str, Any]:
     """Graylog -> 대응 엔진 웹훅 알림. live=False면 본문에 dry_run:true를 실어 모의 실행으로 보낸다."""
-    body = ('{"event_id":"${event.id}","case_id":"${event.fields.case_id}","src_ip":"${event.fields.src_ip}",'
-            '"username":"${event.fields.username}","asset_id":"${event.fields.asset_id}",'
-            '"file_key":"${event.fields.file_key}","condition_met_at":"${event.timestamp}",'
-            '"detected_at":"${event.timestamp_processing}","dry_run":' + ("false" if live else "true") + "}")
     return {
         "title": "nobugs 대응 엔진 웹훅",
         "description": "탐지 이벤트를 대응 엔진으로 보낸다. 인증은 X-Engine-Key 헤더.",
         "config": {"type": "http-notification-v2", "url": url, "method": "POST", "content_type": "JSON",
                    "time_zone": "UTC", "headers": f"X-Engine-Key: {key}", "basic_auth": None,
                    "api_key_as_header": False, "api_key": "", "api_secret": None, "skip_tls_verification": False,
-                   "body_template": body},
+                   "body_template": _detection_body(live)},
+    }
+
+
+def n8n_relay_notification(url: str, key: str, live: bool = False) -> dict[str, Any]:
+    """Graylog -> n8n 웹훅 알림(S1). n8n이 같은 본문을 그대로 대응 엔진 웹훅으로 넘긴다(검증된 티켓·차단
+    로직을 그대로 쓴다) - "탐지 -> n8n 자동 대응" 흐름을 n8n 실행 기록으로 보여주는 용도."""
+    return {
+        "title": "nobugs n8n 웹훅(S1)",
+        "description": "S1 탐지 이벤트를 n8n으로 보낸다. 인증은 X-N8N-Webhook-Key 헤더.",
+        "config": {"type": "http-notification-v2", "url": url, "method": "POST", "content_type": "JSON",
+                   "time_zone": "UTC", "headers": f"X-N8N-Webhook-Key: {key}", "basic_auth": None,
+                   "api_key_as_header": False, "api_key": "", "api_secret": None, "skip_tls_verification": False,
+                   "body_template": _detection_body(live)},
     }
 
 

@@ -112,6 +112,14 @@ def test_engine_notification_dry_run_flag_follows_live_argument():
         "body_template"]
 
 
+def test_n8n_relay_notification_uses_its_own_header_and_the_same_body_as_the_engine():
+    n8n = definitions.n8n_relay_notification("http://n8n/webhook/s1", "nkey", live=True)
+    assert n8n["config"]["url"] == "http://n8n/webhook/s1"
+    assert n8n["config"]["headers"] == "X-N8N-Webhook-Key: nkey"
+    assert n8n["config"]["body_template"] == definitions.engine_notification("http://x", "k", live=True)[
+        "config"]["body_template"]
+
+
 def test_all_definitions_cover_every_case_and_build_without_error():
     for case, build in definitions.ALL_DEFINITIONS.items():
         d = build()
@@ -157,7 +165,10 @@ def test_make_env_never_prints_secrets(tmp_path, capsys):
 class FakeGraylog(BaseHTTPRequestHandler):
     inputs: list = []
     definitions: list = []
+    notifications: list = []
+    whitelist: list = []
     calls: list = []
+    _notif_seq = 0
 
     def _send(self, body, status=200):
         raw = json.dumps(body).encode()
@@ -172,10 +183,16 @@ class FakeGraylog(BaseHTTPRequestHandler):
 
     def do_GET(self):  # noqa: N802
         type(self).calls.append(("GET", self.path, self.headers.get("X-Requested-By"), self.headers.get("Authorization")))
+        if self.path.startswith("/api/system/lbstatus"):
+            return self._send({})
         if self.path.startswith("/api/system/inputs"):
             return self._send({"inputs": type(self).inputs})
         if self.path.startswith("/api/events/definitions"):
             return self._send({"event_definitions": type(self).definitions})
+        if self.path.startswith("/api/events/notifications"):
+            return self._send({"notifications": type(self).notifications})
+        if self.path.startswith("/api/system/urlwhitelist"):
+            return self._send({"entries": type(self).whitelist, "disabled": False})
         self._send({}, 404)
 
     def do_POST(self):  # noqa: N802
@@ -187,10 +204,23 @@ class FakeGraylog(BaseHTTPRequestHandler):
         if self.path.startswith("/api/events/definitions"):
             type(self).definitions.append({"id": "def-1", "title": body["title"]})
             return self._send({"id": "def-1"})
+        if self.path.startswith("/api/events/notifications"):
+            type(self)._notif_seq += 1
+            notif_id = f"notif-{type(self)._notif_seq}"
+            type(self).notifications.append({"id": notif_id, "title": body["title"]})
+            return self._send({"id": notif_id}, 201)
         self._send({}, 404)
 
     def do_PUT(self):  # noqa: N802
-        type(self).calls.append(("PUT", self.path, self._body()))
+        body = self._body()
+        type(self).calls.append(("PUT", self.path, body))
+        if self.path.startswith("/api/system/urlwhitelist"):
+            type(self).whitelist = body.get("entries", [])
+        self._send({})
+
+    def do_DELETE(self):  # noqa: N802
+        type(self).calls.append(("DELETE", self.path))
+        type(self).notifications = [n for n in type(self).notifications if not self.path.endswith(n["id"])]
         self._send({})
 
     def log_message(self, *args):
@@ -200,6 +230,7 @@ class FakeGraylog(BaseHTTPRequestHandler):
 @pytest.fixture
 def fake_graylog():
     FakeGraylog.inputs, FakeGraylog.definitions, FakeGraylog.calls = [], [], []
+    FakeGraylog.notifications, FakeGraylog.whitelist, FakeGraylog._notif_seq = [], [], 0
     server = HTTPServer(("127.0.0.1", 0), FakeGraylog)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     yield graylog.GraylogClient(f"http://127.0.0.1:{server.server_port}", "pw")
@@ -217,6 +248,24 @@ def test_ensure_event_definition_creates_then_updates(fake_graylog):
     assert fake_graylog.ensure_event_definition(definition) == ("def-1", False)
     methods = [c[0] for c in FakeGraylog.calls if "/events/definitions" in c[1] and c[0] != "GET"]
     assert methods == ["POST", "PUT"]
+
+
+def test_setup_routes_only_s1_through_n8n_when_an_n8n_url_is_given(fake_graylog):
+    graylog.setup(fake_graylog, "http://engine/webhook/graylog", "ekey", live=True,
+                  n8n_url="http://n8n/webhook/s1", n8n_key="nkey")
+    posted = {c[2]["title"]: c[2] for c in FakeGraylog.calls if c[0] == "POST" and "/events/definitions" in c[1]}
+    s1_notifications = posted["S1 로그인 무차별 대입 (username+src_ip)"]["notifications"]
+    other_notifications = posted["S4 로그인 실패 뒤 성공 (username+src_ip)"]["notifications"]
+    assert len(s1_notifications) == 1 and len(other_notifications) == 1
+    assert s1_notifications != other_notifications          # S1은 n8n 알림, 나머지는 엔진 알림(서로 다른 id)
+    notif_titles = {n["title"] for n in FakeGraylog.notifications}
+    assert "nobugs n8n 웹훅(S1)" in notif_titles and "nobugs 대응 엔진 웹훅" in notif_titles
+
+
+def test_setup_sends_s1_through_the_engine_when_no_n8n_url_is_given(fake_graylog):
+    graylog.setup(fake_graylog, "http://engine/webhook/graylog", "ekey", live=True)
+    notif_titles = {n["title"] for n in FakeGraylog.notifications}
+    assert notif_titles == {"nobugs 대응 엔진 웹훅"}
 
 
 def test_client_sends_basic_auth_and_required_header(fake_graylog):
