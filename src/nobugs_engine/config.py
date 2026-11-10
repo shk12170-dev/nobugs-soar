@@ -27,6 +27,16 @@ class EngineSettings:
     protected_cidrs: tuple[str, ...] = ("127.0.0.1/32",)
     # 기본은 모의 실행. 실제 조치는 요청이나 설정에서 명시해야 한다.
     default_dry_run: bool = True
+    # 경계 시뮬레이터(S10)
+    boundary_url: str = "http://127.0.0.1:5300"
+    boundary_key: str = ""
+    # S4: 실제 잠금은 이 접두사로 시작하는 시험 계정에만 한다(실수로 실제 계정을 잠그지 않도록)
+    live_account_prefix: str = "zz_"
+    # S12: 서비스 건강 판정
+    health_samples: int = 3
+    health_interval_seconds: float = 2.0
+    health_baseline_ms: float = 200.0
+    health_timeout_seconds: float = 5.0
     discord_webhook_url: str = ""                   # 비워 두면 외부로 보내지 않는다(로컬 수신함만)
 
     @classmethod
@@ -47,5 +57,12 @@ class EngineSettings:
             scheduler_enabled=_bool(e.get("NB_ENGINE_SCHEDULER"), d.scheduler_enabled),
             protected_cidrs=cidrs,
             default_dry_run=_bool(e.get("NB_ENGINE_DRY_RUN"), d.default_dry_run),
+            boundary_url=e.get("NB_BOUNDARY_URL", d.boundary_url),
+            boundary_key=e.get("NB_BOUNDARY_KEY", ""),
+            live_account_prefix=e.get("NB_ENGINE_LIVE_ACCOUNT_PREFIX", d.live_account_prefix),
+            health_samples=int(e.get("NB_ENGINE_HEALTH_SAMPLES", d.health_samples)),
+            health_interval_seconds=float(e.get("NB_ENGINE_HEALTH_INTERVAL", d.health_interval_seconds)),
+            health_baseline_ms=float(e.get("NB_ENGINE_HEALTH_BASELINE_MS", d.health_baseline_ms)),
+            health_timeout_seconds=float(e.get("NB_ENGINE_HEALTH_TIMEOUT", d.health_timeout_seconds)),
             discord_webhook_url=e.get("NB_ENGINE_DISCORD_WEBHOOK", ""),
         )

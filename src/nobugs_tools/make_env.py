@@ -26,6 +26,7 @@ def build_values() -> dict[str, str]:
         # Graylog -> 대응 엔진 웹훅 인증 키 / 엔진 -> 포털 대응 API 키(서로 다른 값)
         "NB_ENGINE_KEY": secrets.token_urlsafe(24),
         "NB_RESPONSE_API_KEY": secrets.token_urlsafe(24),
+        "NB_BOUNDARY_KEY": secrets.token_urlsafe(24),       # 경계 시뮬레이터(S10) 인증 키
     }
 
 

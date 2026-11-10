@@ -15,13 +15,13 @@ from collections.abc import Callable
 
 from fastapi import APIRouter, Depends, FastAPI, Request
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
 from .config import Settings
 from .deps import Ctx, get_ctx, ok
 from .errors import ApiError, install_error_handlers
-from .models import BlockedIp, ResponseReceipt, User, utcnow
+from .models import BlockedIp, LoginSession, ResponseReceipt, User, utcnow
 from .netinfo import client_ip, normalize_ip
 from .security import safe_equal
 from .services import find_user, revoke_sessions
@@ -175,6 +175,17 @@ def lock_account(body: LockBody, request: Request, ctx: Ctx = Depends(get_ctx)):
         ctx.state.events.emit("auth.account_locked", outcome="success", status=200, src_ip=ctx.ip,
                               username=username, by="response-api")
     return ok({**result, "replayed": replayed})
+
+
+@router.get("/accounts/{username}")
+def account_state(username: str, ctx: Ctx = Depends(get_ctx)):
+    """계정 잠금과 살아 있는 세션 수. 잠금이 실제로 적용됐는지 확인하는 용도(읽기 전용)."""
+    target = find_user(ctx.db, username[:40])
+    if target is None:
+        raise ApiError(404, "NOT_FOUND", "계정을 찾을 수 없습니다.")
+    sessions = ctx.db.scalar(select(func.count()).select_from(LoginSession)
+                             .where(LoginSession.user_id == target.id, LoginSession.expires_at > utcnow())) or 0
+    return ok({"username": target.username, "locked": target.locked, "active_sessions": sessions, "role": target.role})
 
 
 def create_control_app(settings: Settings | None = None, state: AppState | None = None) -> FastAPI:

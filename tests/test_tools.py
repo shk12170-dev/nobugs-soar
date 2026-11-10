@@ -48,6 +48,41 @@ def test_definition_rule_names_match_what_the_portal_emits(tmp_path):
     assert Settings().asset_id  # 이벤트 필드 이름은 이벤트 모듈과 같은 값을 쓴다
 
 
+def test_s4_needs_both_failure_and_success_and_a_count_of_six():
+    config = definitions.s4_login_failure_then_success()["config"]
+    assert config["group_by"] == ["username", "src_ip"]
+    assert "login-bruteforce" in config["query"] and "login-success" in config["query"]
+    cond = config["conditions"]["expression"]
+    assert cond["left"]["right"]["value"] == 5 and cond["right"]["right"]["value"] == 2   # 합 6회 이상, 2종류
+
+
+def test_s8_needs_scan_and_login_failure_together():
+    config = definitions.s8_scan_then_login()["config"]
+    assert config["group_by"] == ["src_ip"]
+    assert "web-scan" in config["query"] and "login-bruteforce" in config["query"]
+    assert config["conditions"]["expression"]["right"]["right"]["value"] == 2
+
+
+def test_s10_adds_the_boundary_signal_on_top_of_s8():
+    config = definitions.s10_three_layer()["config"]
+    assert all(term in config["query"] for term in ("web-scan", "login-bruteforce", "boundary-block"))
+    assert config["conditions"]["expression"]["right"]["right"]["value"] == 3              # 세 종류 모두
+
+
+def test_s12_is_a_simple_request_count_threshold():
+    config = definitions.s12_request_flood()["config"]
+    assert config["query"] == "rule:request-observed" and config["group_by"] == ["src_ip"]
+    assert config["conditions"]["expression"]["right"]["value"] == 94
+    assert config["search_within_ms"] == 60_000
+
+
+def test_all_definitions_cover_every_case_and_build_without_error():
+    for case, build in definitions.ALL_DEFINITIONS.items():
+        d = build()
+        assert d["field_spec"]["case_id"]["providers"][0]["template"] == case
+    assert set(definitions.ALL_DEFINITIONS) == {"S1", "S4", "S8", "S10", "S12"}
+
+
 # ---- .env 생성 ----
 
 
@@ -198,3 +233,42 @@ def test_attack_tool_refuses_non_loopback_targets_and_sources():
         attacks.s1_login_bruteforce("http://203.0.113.10:5100", username="x", count=1)
     with pytest.raises(ValueError, match="루프백"):
         attacks.bound_opener("203.0.113.9")
+
+
+def test_s4_attack_logs_failures_then_a_success_for_the_test_account(live_portal, settings):
+    statuses = attacks.s4_failure_then_success(live_portal, username="zz_victim", password=PASSWORD, failures=3,
+                                               source="127.0.0.3", interval=0)
+    assert statuses == [401, 401, 401, 200]
+    events = read_events(settings)
+    failures = [e for e in events if e["event_type"] == "auth.login_failed" and e["username"] == "zz_victim"]
+    success = [e for e in events if e["event_type"] == "auth.login_succeeded" and e["username"] == "zz_victim"]
+    assert len(failures) == 3 and len(success) == 1
+    assert {e["src_ip"] for e in failures + success} == {"127.0.0.3"}
+
+
+def test_s8_attack_produces_not_found_scans_then_login_failures(live_portal, settings):
+    out = attacks.s8_scan_then_login(live_portal, scans=4, logins=2, source="127.0.0.4", interval=0)
+    assert out["scan"] == [404, 404, 404, 404] and out["login"] == [401, 401]
+    events = read_events(settings)
+    scans = [e for e in events if e["event_type"] == "web.not_found" and e["src_ip"] == "127.0.0.4"]
+    assert len(scans) == 4 and {e["rule"] for e in scans} == {"web-scan"}
+
+
+def test_s10_attack_adds_one_boundary_signal_on_top_of_the_scan(live_portal, settings, monkeypatch):
+    sent = []
+    monkeypatch.setattr(attacks.socket.socket, "sendto", lambda self, data, addr: sent.append((data, addr)))
+    out = attacks.s10_three_layer(live_portal, source="127.0.0.5", gelf_port=19999, scans=4, logins=2, interval=0)
+    assert out["boundary_signal"] == 1 and len(sent) == 1
+    assert sent[0][1] == ("127.0.0.1", 19999)
+    payload = json.loads(sent[0][0])
+    assert payload["_rule"] == "boundary-block" and payload["_src_ip"] == "127.0.0.5"
+
+
+def test_s10_boundary_signal_refuses_non_loopback_addresses():
+    with pytest.raises(ValueError, match="루프백"):
+        attacks.boundary_signal("203.0.113.9")
+
+
+def test_s12_attack_sends_repeated_lightweight_health_checks(live_portal):
+    statuses = attacks.s12_request_burst(live_portal, requests=5, source="127.0.0.6")
+    assert statuses == [200] * 5

@@ -90,6 +90,16 @@ class Store:
                     return existing, False
         raise StoreError("티켓 번호를 할당하지 못했습니다.")
 
+    def find_open(self, s: Session, cases: tuple[str, ...], group_key: str) -> Ticket | None:
+        return s.scalar(select(Ticket).where(Ticket.case_id.in_(cases), Ticket.group_key == group_key,
+                                             Ticket.status != "closed"))
+
+    def upgrade_case(self, s: Session, ticket: Ticket, case_id: str) -> None:
+        """같은 대상에서 더 넓은 사건(S8 -> S10)으로 번졌을 때 같은 티켓을 승격한다."""
+        ticket.case_id = case_id
+        ticket.updated_at = self.clock()
+        s.commit()
+
     def get(self, s: Session, ticket_id: str) -> Ticket:
         ticket = s.get(Ticket, ticket_id)
         if ticket is None:

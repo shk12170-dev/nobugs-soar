@@ -20,7 +20,7 @@ from nobugs_portal.state import AppState
 PASSWORD = "Synthetic-Passw0rd-123"
 KEY = "test-response-key-0123456789abcd"
 USERS = [("citizen1", "citizen"), ("citizen2", "citizen"), ("staff1", "staff"), ("staff2", "staff"),
-         ("admin1", "admin")]
+         ("admin1", "admin"), ("zz_victim", "citizen")]      # zz_ 접두는 S4 실제 조치가 허용된 시험 계정
 
 
 @pytest.fixture

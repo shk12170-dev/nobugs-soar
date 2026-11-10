@@ -6,7 +6,16 @@
 
 ## 상태
 
-**M4 완료 — 탐지부터 자동 원복까지 S1 한 사이클이 자동으로 돕니다.** 파이썬 테스트 188건, 프론트 단위 23건, 브라우저 E2E 7건이 통과합니다. 실제 시험(2026-11-10): 공격 후 **10초** 만에 차단·효과 확인(공격 출발지 403, 정상 출발지 200), TTL 30초 뒤 자동 원복(200 복귀), 같은 IP의 티켓 2개도 교착 없이 함께 원복. 나머지 케이스(M5)·Wazuh(M6)는 아직입니다. 단계별 계획은 [docs/PLAN.md](docs/PLAN.md), 구현할 동작의 기준은 [docs/BEHAVIOR-SPEC.md](docs/BEHAVIOR-SPEC.md)입니다.
+**M5 완료 — S1·S4·S8·S10·S12 다섯 케이스가 탐지부터 자동(또는 사람) 원복까지 자동으로 돕니다.** 파이썬 테스트 266건, 프론트 단위 23건, 브라우저 E2E 7건이 통과합니다.
+
+실제 시험(2026-11-10, Graylog·포털·대응 엔진·경계 시뮬레이터를 실제로 띄워 확인):
+- **S1**: 공격 후 10초 만에 차단·효과 확인, TTL 30초 뒤 자동 원복, 같은 IP의 티켓 2개도 교착 없이 함께 원복.
+- **S4**(로그인 실패 뒤 성공, 계정 탈취 의심): 시험 계정(`zz_` 접두)의 로그인 실패 5회 뒤 성공 → 계정 잠금 + 세션 전부 회수, 자동 원복 안 됨. 관리자가 포털에서 잠금을 푼 뒤 `confirm-recovery`로 사람 복구 확인.
+- **S8 → S10**: 스캔(404) + 로그인 실패로 S8이 IP를 차단, 같은 IP에 경계 차단 신호가 더해지면 같은 티켓이 S10으로 승격해 경계·앱을 함께 차단. 원복은 경계 → 앱 순서로 확인. S8은 TTL 20초 뒤 자동 원복.
+- **S12**(요청 폭주): 가벼운 요청 120건을 몰아 보내도 서비스가 멀쩡하면(헬스체크 3회 모두 기준 이내) 티켓도 차단도 만들지 않음 — "무해한 폭주는 차단 안 함" 설계를 실측으로 확인.
+- 시험 중 발견: Graylog의 S8·S10 정의가 같은 트래픽에 동시에 발동해 `ip_block`이 중복 기록되는 경쟁 조건 1건 → 엔진 판단·조치 구간을 직렬화해 수정(상세: [docs/PROVENANCE.md](docs/PROVENANCE.md)).
+
+나머지(Wazuh 파일 변조 복구 M6, N=5 반복 측정·원클릭 설치 M7)는 아직입니다. 단계별 계획은 [docs/PLAN.md](docs/PLAN.md), 구현할 동작의 기준은 [docs/BEHAVIOR-SPEC.md](docs/BEHAVIOR-SPEC.md)입니다.
 
 ## 구성 (목표)
 
@@ -42,8 +51,9 @@ python -m nobugs_tools.graylog events                                   # 발동
 ### 대응 엔진(S1)
 
 ```
-python -m nobugs_tools.make_env                      # 엔진 키·포털 대응 키가 .env에 덧붙음(기존 값은 유지)
+python -m nobugs_tools.make_env                      # 엔진 키·포털 대응 키·경계 키가 .env에 덧붙음(기존 값은 유지)
 python -m uvicorn nobugs_portal.control:control_factory --factory --port 5101 --app-dir src   # 포털 대응 API(별도 프로세스)
+python -m uvicorn nobugs_boundary.app:boundary_factory --factory --port 5300 --app-dir src    # 경계 시뮬레이터(S10, 선택)
 python -m nobugs_engine                              # 대응 엔진 http://127.0.0.1:5200 (티켓·알림 화면 포함)
 python -m nobugs_tools.graylog setup --engine-url http://host.docker.internal:5200/webhook/graylog          # 모의 실행 모드
 python -m nobugs_tools.graylog setup --engine-url http://host.docker.internal:5200/webhook/graylog --live   # 실제 조치 모드

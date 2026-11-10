@@ -112,7 +112,7 @@ def test_admin_routes_are_admin_only(citizen, staff):
 
 def test_admin_lists_and_filters_users(admin):
     all_users = admin.get("/api/v1/admin/users").json()["data"]
-    assert all_users["total"] == 5
+    assert all_users["total"] == 6          # citizen1/2, staff1/2, admin1, zz_victim(S4 시험 계정)
     staff_only = admin.get("/api/v1/admin/users?role=staff").json()["data"]
     assert {u["username"] for u in staff_only["items"]} == {"staff1", "staff2"}
     assert [u["username"] for u in admin.get("/api/v1/admin/users?q=CITIZEN2").json()["data"]["items"]] == ["citizen2"]

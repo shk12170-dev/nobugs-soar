@@ -13,8 +13,9 @@ from starlette.concurrency import run_in_threadpool
 
 from .config import EngineSettings
 from .engine import Detection, Engine
+from .health import HttpHealthChecker
 from .notify import Notifier
-from .portal import HttpPortalControl
+from .portal import HttpBoundaryControl, HttpPortalControl
 from .probe import LoopbackProbe
 from .store import InvalidTransition, NotFound, Store
 
@@ -66,7 +67,11 @@ def create_engine_app(settings: EngineSettings | None = None, engine: Engine | N
         store = store or Store(settings.database_url)
         engine = Engine(settings, store, HttpPortalControl(settings.control_url, settings.control_key,
                                                            settings.control_timeout),
-                        LoopbackProbe(settings.probe_base_url), Notifier(store, settings.discord_webhook_url))
+                        LoopbackProbe(settings.probe_base_url), Notifier(store, settings.discord_webhook_url),
+                        boundary=(HttpBoundaryControl(settings.boundary_url, settings.boundary_key,
+                                                      settings.control_timeout) if settings.boundary_key else None),
+                        health=HttpHealthChecker(settings.probe_base_url, settings.health_samples,
+                                                 settings.health_interval_seconds, settings.health_timeout_seconds))
     store = engine.store
     scheduler = Scheduler(engine, settings.scheduler_interval_seconds) if settings.scheduler_enabled else None
 
@@ -125,6 +130,15 @@ def create_engine_app(settings: EngineSettings | None = None, engine: Engine | N
             except InvalidTransition as exc:
                 return _error(409, "INVALID_TRANSITION", str(exc))
             return {"data": ticket_out(ticket)}
+
+    @app.post("/api/v1/tickets/{ticket_id}/confirm-recovery", dependencies=[Depends(require_key)])
+    def confirm_recovery(ticket_id: str):
+        try:
+            return {"data": engine.confirm_account_recovered(ticket_id)}
+        except NotFound:
+            return _error(404, "NOT_FOUND", "티켓을 찾을 수 없습니다.")
+        except InvalidTransition as exc:
+            return _error(409, "INVALID_TRANSITION", str(exc))
 
     @app.get("/api/v1/notifications")
     def notifications(limit: int = 50):

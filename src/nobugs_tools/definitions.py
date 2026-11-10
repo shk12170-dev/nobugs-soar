@@ -59,6 +59,81 @@ def s1_login_bruteforce(stream_id: str = DEFAULT_STREAM_ID,
     }
 
 
+def _and(*parts: dict[str, Any]) -> dict[str, Any]:
+    expr = parts[0]["expression"]
+    for part in parts[1:]:
+        expr = {"expr": "&&", "left": expr, "right": part["expression"]}
+    return {"expression": expr}
+
+
+def _distinct_at_least(series: str, minimum: int) -> dict[str, Any]:
+    return {"expression": {"expr": ">=", "left": {"expr": "number-ref", "ref": series},
+                           "right": {"expr": "number", "value": minimum}}}
+
+
+def _definition(title: str, description: str, case: str, query: str, group_by: list[str],
+                series: list[dict[str, Any]], conditions: dict[str, Any], window_min: float, every_ms: int,
+                grace_min: float, stream_id: str, notification_ids: list[str] | None) -> dict[str, Any]:
+    fields = {"src_ip": _template("${source.src_ip}"), "case_id": _template(case),
+              "username": _template("${source.username}") if "username" in group_by else _template("-")}
+    return {
+        "title": title, "description": description, "priority": 2, "alert": True,
+        "config": {"type": "aggregation-v1", "query": query, "query_parameters": [], "filters": [],
+                   "streams": [stream_id], "group_by": group_by, "series": series, "conditions": conditions,
+                   "search_within_ms": int(window_min * MINUTE_MS), "execute_every_ms": every_ms,
+                   "use_cron_scheduling": False, "event_limit": 100},
+        "field_spec": fields,
+        "key_spec": group_by,
+        "notification_settings": {"grace_period_ms": int(grace_min * MINUTE_MS), "backlog_size": 0},
+        "notifications": [{"notification_id": n} for n in (notification_ids or [])],
+        "storage": [{"type": "persist-to-streams-v1", "streams": [EVENTS_STREAM_ID]}],
+    }
+
+
+_COUNT = {"id": "count()", "type": "count"}
+_KINDS = {"id": "card(rule)", "type": "card", "field": "rule"}
+FAILED_LOGIN = "(rule:login-bruteforce AND status:401)"
+
+
+def s4_login_failure_then_success(stream_id: str = DEFAULT_STREAM_ID,
+                                  notification_ids: list[str] | None = None) -> dict[str, Any]:
+    """S4: 같은 계정·출발지에서 실패와 성공이 모두 있고 합이 6회 이상(10분)이면 발동(계정 탈취 의심)."""
+    return _definition(
+        "S4 로그인 실패 뒤 성공 (username+src_ip)",
+        "같은 계정·출발지에서 로그인 실패(401)와 성공이 모두 있고 합이 10분 안에 6회 이상.", "S4",
+        f"{FAILED_LOGIN} OR rule:login-success", ["username", "src_ip"], [_COUNT, _KINDS],
+        _and(_count_over(5), _distinct_at_least("card(rule)", 2)), 10, MINUTE_MS, 10, stream_id, notification_ids)
+
+
+def s8_scan_then_login(stream_id: str = DEFAULT_STREAM_ID,
+                       notification_ids: list[str] | None = None) -> dict[str, Any]:
+    """S8: 같은 출발지에서 웹 스캔(404)과 로그인 실패가 모두 있으면(15분) 발동. 스캔은 3건 이상이어야 한다."""
+    return _definition(
+        "S8 웹 스캔 뒤 로그인 시도 (src_ip)",
+        "같은 출발지에서 웹 스캔(404)과 로그인 실패(401)가 모두 15분 안에 있고 합이 5회 이상.", "S8",
+        f"rule:web-scan OR {FAILED_LOGIN}", ["src_ip"], [_COUNT, _KINDS],
+        _and(_count_over(4), _distinct_at_least("card(rule)", 2)), 15, MINUTE_MS, 15, stream_id, notification_ids)
+
+
+def s10_three_layer(stream_id: str = DEFAULT_STREAM_ID,
+                    notification_ids: list[str] | None = None) -> dict[str, Any]:
+    """S10: S8에 경계 차단 신호(boundary-block)까지 더해 세 종류가 모두 있으면(15분) 발동."""
+    return _definition(
+        "S10 스캔·로그인·경계 신호 연쇄 (src_ip)",
+        "같은 출발지에서 웹 스캔·로그인 실패·경계 차단 신호 세 종류가 모두 15분 안에 있음.", "S10",
+        f"rule:web-scan OR {FAILED_LOGIN} OR rule:boundary-block", ["src_ip"], [_COUNT, _KINDS],
+        _and(_count_over(4), _distinct_at_least("card(rule)", 3)), 15, MINUTE_MS, 15, stream_id, notification_ids)
+
+
+def s12_request_flood(stream_id: str = DEFAULT_STREAM_ID,
+                      notification_ids: list[str] | None = None) -> dict[str, Any]:
+    """S12: 같은 출발지의 요청이 1분에 94건을 넘으면 발동. 차단 여부는 엔진이 서비스 상태를 보고 정한다."""
+    return _definition(
+        "S12 요청 폭주 (src_ip)", "같은 출발지의 요청이 1분 안에 94건 초과. 대응은 서비스가 실제로 느려졌을 때만.",
+        "S12", "rule:request-observed", ["src_ip"], [_COUNT], _count_over(94), 1, 30_000, 5, stream_id,
+        notification_ids)
+
+
 def engine_notification(url: str, key: str, live: bool = False) -> dict[str, Any]:
     """Graylog -> 대응 엔진 웹훅 알림. live=False면 본문에 dry_run:true를 실어 모의 실행으로 보낸다."""
     body = ('{"event_id":"${event.id}","case_id":"${event.fields.case_id}","src_ip":"${event.fields.src_ip}",'
@@ -74,4 +149,5 @@ def engine_notification(url: str, key: str, live: bool = False) -> dict[str, Any
     }
 
 
-ALL_DEFINITIONS = {"S1": s1_login_bruteforce}
+ALL_DEFINITIONS = {"S1": s1_login_bruteforce, "S4": s4_login_failure_then_success, "S8": s8_scan_then_login,
+                   "S10": s10_three_layer, "S12": s12_request_flood}

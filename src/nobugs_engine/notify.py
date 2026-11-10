@@ -16,7 +16,8 @@ RESULT_KO = {
     "applied": "조치 적용", "already_applied": "이미 적용돼 있음", "released": "원복 완료",
     "dry_run": "모의 실행 (실제 조치 없음)", "failed": "조치 실패", "uncertain": "결과 불확실 (확인 필요)",
 }
-TITLES = {"S1": "로그인 반복 실패(무차별 대입)"}
+TITLES = {"S1": "로그인 반복 실패(무차별 대입)", "S4": "로그인 실패 뒤 성공(계정 탈취 의심)",
+          "S8": "웹 스캔 뒤 로그인 시도", "S10": "스캔·로그인·경계 차단 신호 연쇄", "S12": "요청 폭주"}
 
 
 def format_message(level: str, ticket: Ticket, result: str, actions: list[Action] | None = None,
@@ -32,10 +33,17 @@ def format_message(level: str, ticket: Ticket, result: str, actions: list[Action
         lines.append(f"계정: {ticket.username}")
     checks = []
     for action in actions or []:
+        if action.kind in ("boundary_block", "boundary_release"):
+            if action.applied_verified:
+                checks.append("경계 차단 목록 반영 확인(시뮬레이션, 실제 패킷 차단 아님)")
+            continue
         if action.applied_verified:
-            checks.append("포털 차단 목록에 반영됨")
+            checks.append("계정 잠금 상태 확인됨" if action.kind.startswith("account") else "포털 차단 목록에 반영됨")
         if action.effect_verified is True:
-            checks.append("실제 접근 차단 확인됨" if result != "released" else "접근 복구 확인됨")
+            if action.kind.startswith("account"):
+                checks.append("로그인 세션 모두 종료 확인됨" if action.kind == "account_lock" else "계정 복구 확인됨")
+            else:
+                checks.append("실제 접근 차단 확인됨" if result != "released" else "접근 복구 확인됨")
         elif action.effect_verified is False:
             checks.append("효과 확인 실패")
     if checks:
