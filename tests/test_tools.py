@@ -248,8 +248,15 @@ def fake_graylog():
 
 
 def test_ensure_inputs_is_idempotent(fake_graylog):
-    assert fake_graylog.ensure_gelf_inputs() == ["portal GELF UDP", "portal GELF TCP"]
+    assert fake_graylog.ensure_gelf_inputs() == ["portal GELF UDP", "portal GELF TCP", "pfsense syslog UDP"]
     assert fake_graylog.ensure_gelf_inputs() == []
+
+
+def test_syslog_input_listens_on_the_port_pfsense_sends_to(fake_graylog):
+    fake_graylog.ensure_gelf_inputs()
+    posted = [c[2] for c in FakeGraylog.calls if c[0] == "POST" and c[1] == "/api/system/inputs"]
+    syslog = next(p for p in posted if p["title"] == "pfsense syslog UDP")
+    assert syslog["configuration"]["port"] == 1514 and "syslog" in syslog["type"].lower()
 
 
 def test_ensure_event_definition_creates_then_updates(fake_graylog):

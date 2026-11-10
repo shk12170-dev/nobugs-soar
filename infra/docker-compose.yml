@@ -47,6 +47,9 @@ services:
       - "127.0.0.1:9100:9000"            # 웹 화면·API
       - "127.0.0.1:12301:12201/udp"      # 포털 이벤트(GELF)
       - "127.0.0.1:12301:12201/tcp"
+      # pfSense 방화벽 로그(syslog). pfSense는 VMware 망에 있어 127.0.0.1로는 닿지 못하므로
+      # NB_SYSLOG_BIND에 VMnet 호스트 주소(예: 172.16.50.100)를 넣는다. 기본값은 루프백이다.
+      - "${NB_SYSLOG_BIND:-127.0.0.1}:1514:1514/udp"
     volumes: [graylog_data:/usr/share/graylog/data]
     networks: [soc]
     restart: unless-stopped

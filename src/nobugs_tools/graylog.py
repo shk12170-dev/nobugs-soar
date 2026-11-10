@@ -22,6 +22,8 @@ from .definitions import ALL_DEFINITIONS, engine_notification, n8n_relay_notific
 ROOT = Path(__file__).resolve().parents[2]
 GELF_UDP = ("portal GELF UDP", "org.graylog2.inputs.gelf.udp.GELFUDPInput")
 GELF_TCP = ("portal GELF TCP", "org.graylog2.inputs.gelf.tcp.GELFTCPInput")
+# pfSense filterlog를 받는 자리. pfSense 쪽 Status > System Logs > Settings에서 이 주소로 보내게 설정한다.
+SYSLOG_UDP = ("pfsense syslog UDP", "org.graylog2.inputs.syslog.udp.SyslogUDPInput", 1514)
 
 
 class GraylogError(RuntimeError):
@@ -69,6 +71,7 @@ class GraylogClient:
 
     # ---- 입력 ----
     def ensure_gelf_inputs(self) -> list[str]:
+        """포털 이벤트(GELF)와 pfSense 방화벽 로그(syslog) 입력을 만든다(멱등). 만든 것 목록을 돌려준다."""
         have = {i["title"] for i in self.call("GET", "/api/system/inputs")["inputs"]}
         created = []
         for title, kind in (GELF_UDP, GELF_TCP):
@@ -78,6 +81,14 @@ class GraylogClient:
                 "title": title, "type": kind, "global": True,
                 "configuration": {"bind_address": "0.0.0.0", "port": 12201, "recv_buffer_size": 262144}})
             created.append(title)
+        syslog_title, syslog_kind, syslog_port = SYSLOG_UDP
+        if syslog_title not in have:
+            self.call("POST", "/api/system/inputs", {
+                "title": syslog_title, "type": syslog_kind, "global": True,
+                "configuration": {"bind_address": "0.0.0.0", "port": syslog_port, "recv_buffer_size": 262144,
+                                  "allow_override_date": True, "expand_structured_data": False,
+                                  "force_rdns": False, "store_full_message": True}})
+            created.append(syslog_title)
         return created
 
     # ---- 탐지 정의 ----

@@ -55,7 +55,7 @@ M7 반복 측정 자동화(`python -m nobugs_tools.measure`)는 전체 스택(Wa
 | Graylog 연동(GELF 입력·집계 정의·엔진 웹훅 알림) | 확인 | 위 6케이스 전부 |
 | Wazuh 매니저+에이전트 실연동(S7 FIM) | 확인 | docs/PROVENANCE.md(M6) |
 | n8n 자동 대응(S1: Graylog → n8n → 대응 엔진) | 확인 | 실제 S1 공격으로 n8n 경유 티켓 생성·차단·효과 확인(docs/PROVENANCE.md). S1의 Graylog 알림 대상은 n8n 하나뿐이라 이 경로로만 발동한다 |
-| pfSense 실제 VM(VMware) | 부분 | 수업 실습 때 설치한 pfSense CE 2.7.2 VM이 기동·웹 UI 응답까지 확인됨. Graylog syslog 연동과 차단 연동은 아직 |
+| pfSense 실제 VM(VMware) | 부분 | 수업 실습 때 설치한 pfSense CE 2.7.2 VM이 기동·웹 UI 응답(`http://172.16.50.2`)까지 확인됨. Graylog에 syslog 입력(UDP 1514)을 만들고 VMnet 주소로 포트를 열어 뒀지만, **pfSense에서 원격 syslog를 보내도록 설정하고 실제 방화벽 로그가 Graylog에 들어오는 것까지는 아직 확인하지 않았다**(손으로 만든 시험 패킷은 입력까지 도달했으나 Graylog 디코더가 메시지로 만들지 않았다). 차단 연동도 아직 |
 | 경계 시뮬레이터(`nobugs_boundary`, S10) | 부분 | 상태만 관리하는 시뮬레이터다. 실제 패킷 차단·실제 프록시 연동은 범위 밖([docs/PLAN.md](docs/PLAN.md) M5) |
 | N=5 반복 측정 자동화(`nobugs_tools.measure`) | 확인 | docs/MEASUREMENTS.md |
 | 원클릭 설치(`scripts\setup.ps1`) | 확인 | docs/PROVENANCE.md |

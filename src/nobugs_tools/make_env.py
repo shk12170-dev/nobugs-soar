@@ -30,6 +30,9 @@ def build_values() -> dict[str, str]:
         "NB_N8N_USER": "admin",
         "NB_N8N_PASSWORD": secrets.token_urlsafe(18),       # n8n 관리 화면 로그인
         "NB_N8N_WEBHOOK_KEY": secrets.token_urlsafe(24),    # Graylog -> n8n 웹훅 인증 키
+        # pfSense syslog를 받을 주소. pfSense는 VMware 망에 있어 루프백으로는 닿지 못하므로,
+        # 연동할 때 VMnet 호스트 주소로 바꿔 넣는다(.env는 Git 제외).
+        "NB_SYSLOG_BIND": "127.0.0.1",
     }
 
 
