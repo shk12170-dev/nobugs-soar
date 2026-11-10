@@ -1,0 +1,61 @@
+# 관제 스택(Graylog + OpenSearch + MongoDB). 모든 포트는 127.0.0.1에만 연다.
+# 실행: docker compose -f infra/docker-compose.yml --env-file .env up -d   (.env는 tools: python -m nobugs_tools.make_env)
+# 버전 고정 이유: Graylog 6.1은 OpenSearch 2.15에서 색인 오류가 나서 2.5.0에 맞춰 검증했다.
+name: nobugs-soc
+
+services:
+  mongodb:
+    image: mongo:6.0.28
+    mem_limit: 512m
+    environment: { TZ: Asia/Seoul }
+    volumes: [mongo_data:/data/db]
+    networks: [soc]
+    restart: unless-stopped
+
+  opensearch:
+    image: opensearchproject/opensearch:2.5.0
+    mem_limit: 2g
+    environment:
+      OPENSEARCH_JAVA_OPTS: "-Xms1g -Xmx1g"
+      bootstrap.memory_lock: "true"
+      discovery.type: single-node
+      action.auto_create_index: "false"
+      plugins.security.disabled: "true"
+      OPENSEARCH_INITIAL_ADMIN_PASSWORD: ${NB_OPENSEARCH_PASSWORD:?make_env로 .env를 먼저 만드세요}
+      TZ: Asia/Seoul
+    ulimits:
+      memlock: { soft: -1, hard: -1 }
+      nofile: { soft: 65536, hard: 65536 }
+    volumes: [os_data:/usr/share/opensearch/data]
+    networks: [soc]
+    restart: unless-stopped
+
+  graylog:
+    image: graylog/graylog:6.1.16
+    mem_limit: 2g
+    depends_on: [mongodb, opensearch]
+    environment:
+      GRAYLOG_PASSWORD_SECRET: ${NB_GRAYLOG_SECRET:?make_env로 .env를 먼저 만드세요}
+      GRAYLOG_ROOT_PASSWORD_SHA2: ${NB_GRAYLOG_ROOT_SHA2:?make_env로 .env를 먼저 만드세요}
+      GRAYLOG_HTTP_EXTERNAL_URI: http://127.0.0.1:9100/
+      GRAYLOG_MONGODB_URI: mongodb://mongodb:27017/graylog
+      GRAYLOG_ELASTICSEARCH_HOSTS: http://opensearch:9200
+      GRAYLOG_ROOT_TIMEZONE: Asia/Seoul
+      GRAYLOG_SERVER_JAVA_OPTS: "-Xms1g -Xmx1g"
+      TZ: Asia/Seoul
+    ports:
+      - "127.0.0.1:9100:9000"            # 웹 화면·API
+      - "127.0.0.1:12301:12201/udp"      # 포털 이벤트(GELF)
+      - "127.0.0.1:12301:12201/tcp"
+    volumes: [graylog_data:/usr/share/graylog/data]
+    networks: [soc]
+    restart: unless-stopped
+
+networks:
+  soc:
+    name: nobugs-soc-net
+
+volumes:
+  mongo_data:
+  os_data:
+  graylog_data:

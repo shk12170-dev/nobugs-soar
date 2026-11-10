@@ -6,7 +6,7 @@
 
 ## 상태
 
-**M2 완료 — 포털(FastAPI + React) + 별도 대응 API 앱.** 백엔드 테스트 114건, 프론트 단위 테스트 23건, 실제 브라우저 E2E 7건이 통과합니다. 관제 연결(M3)·대응 엔진(M4)은 아직입니다. 단계별 계획은 [docs/PLAN.md](docs/PLAN.md), 구현할 동작의 기준은 [docs/BEHAVIOR-SPEC.md](docs/BEHAVIOR-SPEC.md)입니다.
+**M3 완료 — 포털 이벤트가 Graylog에 쌓이고 S1 규칙이 발동합니다.** 파이썬 테스트 131건, 프론트 단위 23건, 브라우저 E2E 7건이 통과합니다. 실제 시험: 로그인 실패 10회 → Graylog 수집 10건 → S1 이벤트 35초 만에 발동. 대응 엔진(M4)·나머지 케이스(M5)는 아직입니다. 단계별 계획은 [docs/PLAN.md](docs/PLAN.md), 구현할 동작의 기준은 [docs/BEHAVIOR-SPEC.md](docs/BEHAVIOR-SPEC.md)입니다.
 
 ## 구성 (목표)
 
@@ -26,6 +26,17 @@ $env:NB_RESPONSE_API_KEY='<무작위 키>'; $env:NB_RESPONSE_ALLOWED_CIDRS='127.
 .\.venv\Scripts\python.exe -m uvicorn nobugs_portal.app:public_factory --factory --port 5100 --app-dir src      # 일반 포털
 .\.venv\Scripts\python.exe -m uvicorn nobugs_portal.control:control_factory --factory --port 5101 --app-dir src  # 대응 API(별도 프로세스)
 .\scripts\test.ps1   # 린트 + 테스트
+```
+
+### 관제 스택(Graylog)과 S1 탐지
+
+```powershell
+python -m nobugs_tools.make_env                                         # .env 생성(무작위 비밀값, 콘솔 출력 없음)
+docker compose -f infra/docker-compose.yml --env-file .env up -d        # Graylog+OpenSearch+MongoDB (웹 127.0.0.1:9100)
+python -m nobugs_tools.graylog setup                                    # GELF 입력 + S1 탐지 정의 올리기(멱등)
+$env:NB_GELF_ENABLED='true'; $env:NB_GELF_PORT='12301'                  # 포털 이벤트를 Graylog로 보내기
+python -m nobugs_tools.attacks s1 --source 127.0.0.2 --user victim_a    # 공격 재현(루프백 전용)
+python -m nobugs_tools.graylog events                                   # 발동한 이벤트 보기(최대 약 1분 뒤)
 ```
 
 ### 프론트(React) 빌드·실행
