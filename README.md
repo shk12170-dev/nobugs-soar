@@ -19,7 +19,36 @@
 - **S7**(홈페이지 변조): 공격 스크립트로 포털이 실제로 서빙하는 파일(`web/dist`)을 직접 바꿔치고 방문자 접근을 재현 → 실제 Wazuh 에이전트가 실시간 FIM으로 변조를 감지 → bridge가 기준본과 다를 때만 `tamper-signal`을 Graylog로 전달 → 변조 신호 + 방문자 접근(2xx)이 같은 자산·파일에서 10분 안에 모이면 Graylog가 엔진 웹훅을 호출 → 엔진이 포털 대응 API로 파일을 기준본으로 복구하고 티켓이 `restored`로 바로 넘어감(복구 자체가 원복이라 자동 원복은 없음) → 사람이 `close`로 마무리. 기준본에 없는 새 파일이면 격리(`quarantine`)로 분기.
 - 시험 중 발견·수정한 버그 2건(상세: [docs/PROVENANCE.md](docs/PROVENANCE.md)): ① Graylog 필드 값 계산이 `src_ip`를 필수로 요구해 `tamper-signal`(src_ip 없음) 쪽에서 이벤트 생성 자체가 조용히 실패 → S7만 `require_values=false`로 완화. ② 엔진 웹훅 알림 본문에 `asset_id`/`file_key`가 전혀 담겨 있지 않아 엔진이 매번 "보호 대상 아님"으로 조용히 무시(Graylog는 2xx로 보고 성공 처리) → 본문에 두 필드 추가.
 
-M7 반복 측정 자동화(`python -m nobugs_tools.measure`)는 전체 스택(Wazuh 포함)으로 S1·S4·S7·S8·S10·S12 여섯 케이스를 각 N=5로 돌려 30회 중 29회 확인했습니다(S7 5회차 1건은 기준본 파일 4개를 돌려 쓰다 재알림 묵음 기간에 걸린 측정 설계의 한계였고, 실제 복구는 끝까지 됐습니다 — 결과는 [docs/MEASUREMENTS.md](docs/MEASUREMENTS.md)). 원클릭 설치(`scripts\setup.ps1`)도 `-WithWazuh`까지 포함해 실제로 여러 번 돌려 확인했습니다 — .env 생성, docker compose up, Graylog 준비 대기, S7 기준본 저장, Graylog 정의 설정, 상태 대조까지 한 번에 하고 끝에 포털·엔진을 띄우는 다음 명령을 안내합니다(시험 중 발견·수정한 결함은 [docs/PROVENANCE.md](docs/PROVENANCE.md)). README 검증 표·아키텍처 그림·스크린샷·회고는 아직입니다. 단계별 계획은 [docs/PLAN.md](docs/PLAN.md), 구현할 동작의 기준은 [docs/BEHAVIOR-SPEC.md](docs/BEHAVIOR-SPEC.md)입니다.
+M7 반복 측정 자동화(`python -m nobugs_tools.measure`)는 전체 스택(Wazuh 포함)으로 S1·S4·S7·S8·S10·S12 여섯 케이스를 각 N=5로 돌려 30회 중 29회 확인했습니다(S7 5회차 1건은 기준본 파일 4개를 돌려 쓰다 재알림 묵음 기간에 걸린 측정 설계의 한계였고, 실제 복구는 끝까지 됐습니다 — 결과는 [docs/MEASUREMENTS.md](docs/MEASUREMENTS.md)). 원클릭 설치(`scripts\setup.ps1`)도 `-WithWazuh`까지 포함해 실제로 여러 번 돌려 확인했습니다 — .env 생성, docker compose up, Graylog 준비 대기, S7 기준본 저장, Graylog 정의 설정, 상태 대조까지 한 번에 하고 끝에 포털·엔진을 띄우는 다음 명령을 안내합니다(시험 중 발견·수정한 결함은 [docs/PROVENANCE.md](docs/PROVENANCE.md)). 아키텍처 그림·스크린샷·회고는 아직입니다. 단계별 계획은 [docs/PLAN.md](docs/PLAN.md), 구현할 동작의 기준은 [docs/BEHAVIOR-SPEC.md](docs/BEHAVIOR-SPEC.md)입니다.
+
+## 검증 표
+
+"확인"은 실제 서버(포털·대응 API·엔진·Graylog, S7은 Wazuh까지)로 전체 사이클(공격 → 탐지 → 조치 → 원복 또는
+사람 확인)을 완주한 것만 표시한다. 자세한 근거는 [docs/MEASUREMENTS.md](docs/MEASUREMENTS.md)(반복 측정)와
+[docs/PROVENANCE.md](docs/PROVENANCE.md)(발견·수정한 결함)에 있다.
+
+### 보안 케이스
+
+| 케이스 | 공격 시나리오 | 탐지 | 대응 | 원복 | 실측(N=5, 2026-11-10) | 상태 |
+| --- | --- | --- | --- | --- | --- | --- |
+| S1 | 로그인 무차별 대입 | Graylog 집계(실패 9회↑/30분, username+src_ip) | IP 차단 | TTL 자동 | 5/5 | 확인 |
+| S4 | 로그인 실패 뒤 성공(계정 탈취 의심) | Graylog 집계(실패+성공 합 6회↑) | 계정 잠금 + 세션 전부 회수 | 자동 원복 없음 — 사람이 `confirm-recovery`로 확인 | 5/5 | 확인 |
+| S7 | 홈페이지 변조 | Wazuh FIM 실시간 감지 → `wazuh_bridge` → Graylog 집계(asset_id+file_key) | 기준본으로 복구(기준본에 없는 새 파일은 격리) | 복구 자체가 원복 — 사람이 `close`로 마무리 | 4/5(1건은 재알림 묵음 기간에 걸린 측정 설계의 한계, 실제 복구는 끝까지 됨) | 확인 |
+| S8 | 웹 스캔 뒤 로그인 시도 | Graylog 집계(스캔+실패 합 5회↑, src_ip) | IP 차단 | TTL 자동 | 5/5 | 확인 |
+| S10 | 스캔·로그인·경계 신호 연쇄(S8 승격) | Graylog 집계(세 종류 모두, src_ip) | IP 차단 + 경계 차단(시뮬레이터) | TTL 자동(경계 → 앱 순서) | 5/5 | 확인 |
+| S12 | 요청 폭주 | Graylog 집계(94건↑/분, src_ip) | 조건부 — 헬스체크로 서비스가 실제로 느려졌을 때만 | 해당 없음(무해하면 조치 자체를 안 함) | 5/5(5회 모두 "조치 없음"이 맞는 결과) | 확인 |
+
+### 인프라·도구
+
+| 항목 | 상태 | 근거 |
+| --- | --- | --- |
+| Graylog 연동(GELF 입력·집계 정의·엔진 웹훅 알림) | 확인 | 위 6케이스 전부 |
+| Wazuh 매니저+에이전트 실연동(S7 FIM) | 확인 | docs/PROVENANCE.md(M6) |
+| 경계 시뮬레이터(`nobugs_boundary`, S10) | 부분 | 상태만 관리하는 시뮬레이터다. 실제 패킷 차단·실제 프록시 연동은 범위 밖([docs/PLAN.md](docs/PLAN.md) M5) |
+| N=5 반복 측정 자동화(`nobugs_tools.measure`) | 확인 | docs/MEASUREMENTS.md |
+| 원클릭 설치(`scripts\setup.ps1`) | 확인 | docs/PROVENANCE.md |
+| 프론트 E2E(Playwright) | 확인 | 7건 통과 |
+| 다른 팀과의 공방전 | 미확인 | 일정·대상·규칙·채점 기준 미정(팀 캡스톤 쪽 결정 사항, 이 저장소 밖) |
 
 ## 구성 (목표)
 
