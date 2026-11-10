@@ -6,7 +6,7 @@
 
 ## 상태
 
-**M3 완료 — 포털 이벤트가 Graylog에 쌓이고 S1 규칙이 발동합니다.** 파이썬 테스트 131건, 프론트 단위 23건, 브라우저 E2E 7건이 통과합니다. 실제 시험: 로그인 실패 10회 → Graylog 수집 10건 → S1 이벤트 35초 만에 발동. 대응 엔진(M4)·나머지 케이스(M5)는 아직입니다. 단계별 계획은 [docs/PLAN.md](docs/PLAN.md), 구현할 동작의 기준은 [docs/BEHAVIOR-SPEC.md](docs/BEHAVIOR-SPEC.md)입니다.
+**M4 완료 — 탐지부터 자동 원복까지 S1 한 사이클이 자동으로 돕니다.** 파이썬 테스트 188건, 프론트 단위 23건, 브라우저 E2E 7건이 통과합니다. 실제 시험(2026-11-10): 공격 후 **10초** 만에 차단·효과 확인(공격 출발지 403, 정상 출발지 200), TTL 30초 뒤 자동 원복(200 복귀), 같은 IP의 티켓 2개도 교착 없이 함께 원복. 나머지 케이스(M5)·Wazuh(M6)는 아직입니다. 단계별 계획은 [docs/PLAN.md](docs/PLAN.md), 구현할 동작의 기준은 [docs/BEHAVIOR-SPEC.md](docs/BEHAVIOR-SPEC.md)입니다.
 
 ## 구성 (목표)
 
@@ -38,6 +38,18 @@ $env:NB_GELF_ENABLED='true'; $env:NB_GELF_PORT='12301'                  # 포털
 python -m nobugs_tools.attacks s1 --source 127.0.0.2 --user victim_a    # 공격 재현(루프백 전용)
 python -m nobugs_tools.graylog events                                   # 발동한 이벤트 보기(최대 약 1분 뒤)
 ```
+
+### 대응 엔진(S1)
+
+```
+python -m nobugs_tools.make_env                      # 엔진 키·포털 대응 키가 .env에 덧붙음(기존 값은 유지)
+python -m uvicorn nobugs_portal.control:control_factory --factory --port 5101 --app-dir src   # 포털 대응 API(별도 프로세스)
+python -m nobugs_engine                              # 대응 엔진 http://127.0.0.1:5200 (티켓·알림 화면 포함)
+python -m nobugs_tools.graylog setup --engine-url http://host.docker.internal:5200/webhook/graylog          # 모의 실행 모드
+python -m nobugs_tools.graylog setup --engine-url http://host.docker.internal:5200/webhook/graylog --live   # 실제 조치 모드
+```
+
+엔진은 기본이 **모의 실행**입니다(`NB_ENGINE_DRY_RUN=false` 또는 알림 본문의 `dry_run:false`로만 실제 차단). 자동 원복 대기 시간은 `NB_ENGINE_RELEASE_TTL`(기본 90초).
 
 ### 프론트(React) 빌드·실행
 
