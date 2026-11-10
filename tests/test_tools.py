@@ -159,6 +159,16 @@ def test_make_env_never_prints_secrets(tmp_path, capsys):
     assert not any(s in out for s in secrets_in_file)
 
 
+def test_env_example_lists_every_key_make_env_generates():
+    """키를 새로 넣고 .env.example을 빼먹으면, 새 클론에서 docker compose가 바로 멈춘다."""
+    from pathlib import Path
+
+    example = Path(__file__).resolve().parents[1] / ".env.example"
+    listed = {line.split("=", 1)[0].lstrip("# ").strip()
+             for line in example.read_text(encoding="utf-8").splitlines() if "=" in line}
+    assert set(make_env.build_values()) <= listed
+
+
 # ---- Graylog 클라이언트(가짜 서버) ----
 
 

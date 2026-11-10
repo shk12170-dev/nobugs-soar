@@ -1,8 +1,18 @@
 # nobugs-soar
 
-공공기관 민원 포털을 공격 → **탐지(Graylog·Wazuh)** → **자동 대응(Python 대응 엔진)** → **차단·잠금·복구** → **티켓·효과 확인·자동 원복**까지 한 흐름으로 보여 주는 보안 관제·자동 대응(SOAR) 프로젝트입니다.
+공공기관 민원 포털을 공격 → **탐지(Graylog·Wazuh)** → **자동 대응(n8n·Python 대응 엔진)** → **차단·잠금·복구** → **티켓·효과 확인·자동 원복**까지 한 흐름으로 보여 주는 보안 관제·자동 대응(SOAR) 프로젝트입니다.
 
-팀 캡스톤(NoBugs 1조, 2026.10~11)에서 다뤘던 문제를 **혼자, 처음부터 새로 설계·구현**하는 저장소입니다. 이전에 만든 재현판(`haedam-soar`, 비공개)과 달리 포털·대응 로직·탐지 규칙을 본인 코드로 새로 작성합니다. 출처·작성 규칙은 [docs/CLEANROOM.md](docs/CLEANROOM.md)에 있습니다.
+## 팀 원본과 본인 기여 범위
+
+| 항목 | 내용 |
+| --- | --- |
+| 팀 원본 저장소 | [NoBugs-Aleph/aleph-soar-capstone](https://github.com/NoBugs-Aleph/aleph-soar-capstone) (관제·탐지·대응), [haedam-portal-backend](https://github.com/NoBugs-Aleph/haedam-portal-backend) · [haedam-portal-frontend](https://github.com/NoBugs-Aleph/haedam-portal-frontend) (민원 포털) |
+| 팀 | NoBugs 1조 4인(2026.10~11) — 김명준, 김상혁(본인), 김대훈, 반소람 |
+| 팀에서 본인 역할 | C 자리 — 티켓 저장소(상태 기계·멱등 처리)와 S7(홈페이지 변조) 복구 담당 |
+| 이 저장소 | 팀이 PC 4대에 나눠 만든 것을 **혼자, PC 한 대에서, 처음부터 새로 설계·구현**한 것입니다. 포털·대응 엔진·탐지 규칙·복구 로직은 팀 코드를 보고 옮긴 것이 아니라 명세만 보고 새로 작성했습니다(작성 규칙 [docs/CLEANROOM.md](docs/CLEANROOM.md), 모듈별 출처 [docs/PROVENANCE.md](docs/PROVENANCE.md)). |
+| 팀과 다른 점 | 팀은 대응을 n8n 워크플로로 조립했지만, 이 저장소는 대응 로직을 **직접 만든 Python 대응 엔진**(티켓 상태 기계·멱등·효과 확인·자동 원복)으로 구현했고, n8n은 Graylog 탐지를 엔진으로 중계하는 자리에 둡니다(S1). |
+
+AI 코딩 도구(Claude Code)를 보조로 썼고, 설계 결정과 검증은 본인이 했습니다. 실측값은 모두 이 PC에서 직접 잰 것이며 팀 PC 4대에서 잰 값과 섞지 않았습니다. 비밀값은 `.env`에만 두고 저장소에는 [.env.example](.env.example)만 둡니다.
 
 ## 상태
 
@@ -44,6 +54,8 @@ M7 반복 측정 자동화(`python -m nobugs_tools.measure`)는 전체 스택(Wa
 | --- | --- | --- |
 | Graylog 연동(GELF 입력·집계 정의·엔진 웹훅 알림) | 확인 | 위 6케이스 전부 |
 | Wazuh 매니저+에이전트 실연동(S7 FIM) | 확인 | docs/PROVENANCE.md(M6) |
+| n8n 자동 대응(S1: Graylog → n8n → 대응 엔진) | 확인 | 실제 S1 공격으로 n8n 경유 티켓 생성·차단·효과 확인(docs/PROVENANCE.md). S1의 Graylog 알림 대상은 n8n 하나뿐이라 이 경로로만 발동한다 |
+| pfSense 실제 VM(VMware) | 부분 | 수업 실습 때 설치한 pfSense CE 2.7.2 VM이 기동·웹 UI 응답까지 확인됨. Graylog syslog 연동과 차단 연동은 아직 |
 | 경계 시뮬레이터(`nobugs_boundary`, S10) | 부분 | 상태만 관리하는 시뮬레이터다. 실제 패킷 차단·실제 프록시 연동은 범위 밖([docs/PLAN.md](docs/PLAN.md) M5) |
 | N=5 반복 측정 자동화(`nobugs_tools.measure`) | 확인 | docs/MEASUREMENTS.md |
 | 원클릭 설치(`scripts\setup.ps1`) | 확인 | docs/PROVENANCE.md |
@@ -105,6 +117,25 @@ python -m nobugs_tools.graylog setup --engine-url http://host.docker.internal:52
 ```
 
 엔진은 기본이 **모의 실행**입니다(`NB_ENGINE_DRY_RUN=false` 또는 알림 본문의 `dry_run:false`로만 실제 차단). 자동 원복 대기 시간은 `NB_ENGINE_RELEASE_TTL`(기본 90초).
+
+### n8n 자동 대응(S1)
+
+S1 탐지만 Graylog → **n8n** → 대응 엔진 순서로 흐릅니다(나머지 케이스는 Graylog → 엔진 직결). n8n은 받은
+본문을 그대로 엔진 웹훅으로 넘기므로, 티켓·차단·효과 확인·원복은 검증된 엔진 로직이 그대로 처리하고 n8n에는
+실행 기록이 남습니다. 관리 화면은 `http://127.0.0.1:5678` (로그인 값은 `.env`의 `NB_N8N_USER`/`NB_N8N_PASSWORD`).
+
+```powershell
+docker compose -f infra/docker-compose.yml --env-file .env up -d n8n
+python -m nobugs_tools.n8n_setup                 # 자격 증명·워크플로 반입 후 활성화
+python -m nobugs_tools.graylog setup --engine-url http://host.docker.internal:5200/webhook/graylog `
+    --n8n-url http://n8n:5678/webhook/s1 --live  # S1만 n8n 경유로 연결
+python -m nobugs_tools.attacks s1 --source 127.40.0.1 --user zz_demo --count 10
+```
+
+n8n에서 겪은 것(그대로 적어 둡니다): `import:workflow`는 JSON 최상위에 `id`가 없으면 SQLite NOT NULL로
+실패하고, 가져온 워크플로는 기본 비활성이라 `publish:workflow` 뒤 컨테이너를 재시작해야 활성화됩니다. 표현식의
+`$env` 접근은 기본 차단이라 키는 n8n 자격 증명으로 넘겨야 합니다. 그리고 `latest` 이미지는 메모리 512m에서
+Node 힙 OOM으로 죽어 1536m로 올렸습니다.
 
 ### Wazuh FIM과 S7(홈페이지 변조)
 
