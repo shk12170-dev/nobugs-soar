@@ -9,6 +9,8 @@ dist/
 .pytest_cache/
 instance/
 infra/wazuh/logs/
+# n8n 자격 증명처럼 .env 값이 박힌 생성물(커밋 금지) - gitignore는 줄 끝 주석을 지원하지 않는다
+*.local.json
 *.sqlite*
 *.db
 .local/

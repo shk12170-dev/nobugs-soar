@@ -250,6 +250,14 @@ def test_ensure_event_definition_creates_then_updates(fake_graylog):
     assert methods == ["POST", "PUT"]
 
 
+def test_ensure_allowlist_can_add_two_different_urls(fake_graylog):
+    # 고정 id를 쓰면 두 번째 주소를 추가할 때 "중복 id" 오류가 난다(실제로 겪은 문제).
+    assert fake_graylog.ensure_allowlist("http://engine/webhook/graylog") is True
+    assert fake_graylog.ensure_allowlist("http://n8n:5678/webhook/s1") is True
+    assert len(FakeGraylog.whitelist) == 2
+    assert len({e["id"] for e in FakeGraylog.whitelist}) == 2
+
+
 def test_setup_routes_only_s1_through_n8n_when_an_n8n_url_is_given(fake_graylog):
     graylog.setup(fake_graylog, "http://engine/webhook/graylog", "ekey", live=True,
                   n8n_url="http://n8n/webhook/s1", n8n_key="nkey")

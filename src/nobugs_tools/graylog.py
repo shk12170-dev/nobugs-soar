@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import hashlib
 import json
 import os
 import time
@@ -92,11 +93,16 @@ class GraylogClient:
 
     # ---- 알림 ----
     def ensure_allowlist(self, url: str) -> bool:
-        """Graylog는 허용 목록에 없는 주소로 알림을 보내지 않는다. 없으면 추가한다. 추가했는지 돌려준다."""
+        """Graylog는 허용 목록에 없는 주소로 알림을 보내지 않는다. 없으면 추가한다. 추가했는지 돌려준다.
+
+        id는 url에서 만든다 - 고정 id를 쓰면 엔진·n8n처럼 서로 다른 주소를 둘 다 등록할 때 "중복 id" 오류가
+        난다(실제로 겪은 문제).
+        """
         current = self.call("GET", "/api/system/urlwhitelist")
         if any(e.get("value") == url for e in current.get("entries", [])):
             return False
-        current.setdefault("entries", []).append({"id": "nobugs-engine", "title": "nobugs 대응 엔진", "value": url,
+        entry_id = "nobugs-" + hashlib.sha256(url.encode()).hexdigest()[:12]
+        current.setdefault("entries", []).append({"id": entry_id, "title": f"nobugs 알림 ({url})", "value": url,
                                                   "type": "literal"})
         self.call("PUT", "/api/system/urlwhitelist", current)
         return True
