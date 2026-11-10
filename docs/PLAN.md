@@ -61,7 +61,10 @@
 - 케이스별 N=5 측정 자동화(회차마다 계정·출발지 분리) ✅ `src/nobugs_tools/measure.py` — 결과 표는
   [docs/MEASUREMENTS.md](MEASUREMENTS.md). S1·S4·S8·S10·S12를 실제 서버로 2회씩 돌려 확인(아래 PROVENANCE).
   S7 포함 전체 케이스 N=5 측정은 Wazuh까지 띄우는 다음 측정일에 진행한다.
-- `setup` 스크립트 + `docker compose up -d`로 **처음부터 재현**, 시작 시 상태 대조 — 아직
+- `setup` 스크립트 + `docker compose up -d`로 **처음부터 재현**, 시작 시 상태 대조 ✅
+  `scripts/setup.ps1`(venv·프론트 빌드) + `src/nobugs_tools/setup.py`(.env·docker·기준본·시연 계정·Graylog
+  설정·상태 대조). 실제로 돌려 확인(아래 PROVENANCE). 포털·대응 API·엔진은 여러 터미널에서 보며 시연해야 해서
+  이 스크립트가 직접 띄우지는 않고, 끝에 다음 명령을 안내한다.
 - README 검증 표(확인/부분/미확인 구분), 아키텍처 그림, 스크린샷, 회고, 이력서 갱신 — 아직
 - **완료 조건:** 깨끗한 폴더에서 문서만 보고 설치·시연 성공, 루트 테스트 전부 통과
 
