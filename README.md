@@ -223,6 +223,7 @@ GELF의 `host`를 보낸 IP로 넣어 Graylog `source`가 `172.16.50.2`(pfSense)
 ```powershell
 python -m nobugs_tools.measure --case S1,S4,S8,S10,S12 --rounds 5 --out docs/MEASUREMENTS.md
 python -m nobugs_tools.measure --all --rounds 5   # S7까지 포함(Wazuh 필요)
+python -m nobugs_tools.measure --case S7 --rounds 5 --s7-wait-grace   # 기준본 파일보다 회차가 많을 때 묵음(10분)을 기다려 잰다
 ```
 
 도구를 다시 돌릴 때는 `--salt`(기본은 실행 시각 기준)가 바뀌어 출발지 IP가 겹치지 않는다 — 같은 IP를 또 쓰면

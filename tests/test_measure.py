@@ -160,6 +160,31 @@ def test_s7_round_uses_the_baseline_file_for_the_round_number(live_portal_dist, 
     assert r.ok and r.status == "restored" and r.group_key == "nobugs-portal@index.html"
 
 
+def test_s7_round_skips_a_file_reused_inside_the_grace_period(live_portal_dist, fake_engine):
+    # 기준본 파일이 1개뿐이라 2회차는 1회차와 같은 파일 - Graylog가 재알림하지 않으므로 timeout 대신 grace_skip
+    base_url, dist, base_dir = live_portal_dist
+    FakeEngine.tickets = [ticket("S7", "nobugs-portal@index.html", "restored")]
+    kw = dict(base=base_url, engine=fake_engine, web_root=str(dist), baseline_dir=str(base_dir),
+              asset_id="nobugs-portal", timeout=5)
+    assert measure._s7_round(1, **kw).ok
+    started = time.monotonic()
+    r = measure._s7_round(2, **kw)
+    assert not r.ok and r.status == "grace_skip" and "묵음" in r.detail
+    assert time.monotonic() - started < 2      # 기다리지 않고 바로 넘어간다
+
+
+def test_s7_round_waits_out_the_grace_period_when_asked(live_portal_dist, fake_engine):
+    base_url, dist, base_dir = live_portal_dist
+    FakeEngine.tickets = [ticket("S7", "nobugs-portal@index.html", "restored")]
+    kw = dict(base=base_url, engine=fake_engine, web_root=str(dist), baseline_dir=str(base_dir),
+              asset_id="nobugs-portal", timeout=5, grace_seconds=1.0, s7_wait_grace=True)
+    assert measure._s7_round(1, **kw).ok
+    started = time.monotonic()
+    r = measure._s7_round(2, **kw)
+    assert r.ok and r.status == "restored"
+    assert time.monotonic() - started >= 0.5   # 묵음이 끝날 때까지 기다린 뒤 잰다
+
+
 def test_s7_round_reports_missing_baseline_without_crashing(live_portal_dist, fake_engine, tmp_path):
     base_url, dist, _base_dir = live_portal_dist
     empty_baseline = tmp_path / "no-such-baseline"
