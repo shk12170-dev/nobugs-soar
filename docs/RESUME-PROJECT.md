@@ -57,6 +57,6 @@
 
 ## 근거 자료
 
-- 구조: [ARCHITECTURE.md](ARCHITECTURE.md) · 화면: [screenshots/](screenshots/)
+- 구조: [ARCHITECTURE.md](ARCHITECTURE.md) · 화면: [screenshots/](screenshots/) · 시연 대본: [DEMO-SCRIPT.md](DEMO-SCRIPT.md)
 - 측정: [MEASUREMENTS.md](MEASUREMENTS.md) · 출처·검증: [PROVENANCE.md](PROVENANCE.md) · 회고: [RETROSPECTIVE.md](RETROSPECTIVE.md)
 - 저장소: https://github.com/shk12170-dev/nobugs-soar
