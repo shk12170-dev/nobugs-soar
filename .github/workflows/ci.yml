@@ -7,14 +7,26 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12", "3.14"]   # 3.14는 개발 PC 버전(전체 통과 확인), 3.12는 pyproject 최소 지원
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: ${{ matrix.python-version }}
           cache: pip
+      - name: Compose 파일 문법 검사
+        run: docker compose -f infra/docker-compose.yml config -q
+        env:
+          NB_N8N_USER: ci
+          NB_N8N_PASSWORD: ci
+          NB_GRAYLOG_SECRET: cicicicicicicicicicicicici
+          NB_GRAYLOG_ROOT_SHA2: cicicicicicicicicicicicici
+          NB_OPENSEARCH_PASSWORD: Ci-Ci-12345-xx
       - name: Install
-        run: pip install -e ".[dev]"
+        run: pip install -e ".[dev]" -c constraints.txt
       - name: Lint
         run: ruff check .
       - name: Test
@@ -34,7 +46,7 @@ jobs:
           cache: npm
           cache-dependency-path: web/package-lock.json
       - name: Install backend (E2E 서버용)
-        run: pip install -e .
+        run: pip install -e . -c constraints.txt
       - name: Install web
         working-directory: web
         run: npm ci
