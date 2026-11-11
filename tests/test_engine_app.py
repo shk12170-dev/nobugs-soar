@@ -233,6 +233,34 @@ def test_notifications_endpoint_and_health(web):
     assert web.client.get("/api/v1/health").json()["data"]["status"] == "ok"
 
 
+def test_reads_stay_open_by_default_on_loopback(web):
+    # 기본(read_auth 꺼짐): 같은 PC의 조회는 키 없이 된다 - 기존 동작 유지
+    assert web.client.get("/api/v1/tickets").status_code == 200
+    assert web.client.get("/").status_code == 200
+
+
+def test_read_auth_requires_the_key_for_every_read_but_not_health(tmp_path):
+    store = Store(f"sqlite:///{(tmp_path / 'r.db').as_posix()}")
+    settings = EngineSettings(engine_key=ENGINE_KEY, read_auth=True, default_dry_run=False,
+                              scheduler_enabled=False)
+    engine = Engine(settings, store, FakePortal(), FakeProbe(), Notifier(store))
+    client = TestClient(create_engine_app(settings, engine=engine))
+    ticket_id = client.post("/webhook/graylog", json=PAYLOAD,
+                            headers={"X-Engine-Key": ENGINE_KEY}).json()["data"]["ticket_id"]
+    reads = ["/api/v1/tickets", f"/api/v1/tickets/{ticket_id}", "/api/v1/notifications", "/"]
+    for path in reads:
+        assert client.get(path).status_code == 401, path
+        assert client.get(path, headers={"X-Engine-Key": "wrong"}).status_code == 401, path
+        assert client.get(path, headers={"X-Engine-Key": ENGINE_KEY}).status_code == 200, path
+    assert client.get("/api/v1/health").status_code == 200   # 살아 있는지 보는 용도는 열어 둔다
+    store.dispose()
+
+
+def test_read_auth_setting_comes_from_env():
+    assert EngineSettings.from_env({}).read_auth is False
+    assert EngineSettings.from_env({"NB_ENGINE_READ_AUTH": "true"}).read_auth is True
+
+
 def test_dashboard_escapes_untrusted_values(web):
     hook(web, {**PAYLOAD, "event_id": "ev-x", "username": "<script>alert(1)</script>"})
     html = web.client.get("/").text

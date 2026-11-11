@@ -74,7 +74,9 @@ class EngineClient:
         self.timeout = timeout
 
     def _get(self, path: str) -> dict:
-        req = urllib.request.Request(self.base_url + path)
+        # 엔진이 조회 인증(NB_ENGINE_READ_AUTH)을 켰을 때도 읽을 수 있게 키를 함께 보낸다
+        headers = {"X-Engine-Key": self.engine_key} if self.engine_key else {}
+        req = urllib.request.Request(self.base_url + path, headers=headers)
         with urllib.request.urlopen(req, timeout=self.timeout) as r:
             return json.loads(r.read() or b"{}")
 

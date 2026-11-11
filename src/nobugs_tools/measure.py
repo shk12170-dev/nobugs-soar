@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import time
 import urllib.error
 import urllib.request
@@ -38,7 +39,9 @@ def _engine_call(engine_base: str, method: str, path: str, engine_key: str = "",
 
 
 def _tickets(engine_base: str) -> list[dict[str, Any]]:
-    return _engine_call(engine_base, "GET", "/api/v1/tickets?limit=200")["data"]["items"]
+    # 엔진이 조회 인증(NB_ENGINE_READ_AUTH)을 켰을 때도 읽을 수 있게 .env의 엔진 키를 붙인다
+    key = os.environ.get("NB_ENGINE_KEY", "")
+    return _engine_call(engine_base, "GET", "/api/v1/tickets?limit=200", key)["data"]["items"]
 
 
 def _created_at(ticket: dict[str, Any]) -> datetime:
