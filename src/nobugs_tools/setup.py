@@ -82,6 +82,16 @@ def step_graylog_setup(live: bool) -> None:
                        live)
 
 
+def relay_bind(env: dict[str, str]) -> str | None:
+    """pfSense syslog 중계기를 띄워야 하는 주소를 돌려준다(연동이 설정된 경우만).
+
+    NB_SYSLOG_BIND가 루프백/와일드카드면 pfSense 연동이 아직 안 된 것이라 None(중계기 생략).
+    VMnet 호스트 주소가 들어 있으면 그 주소를 돌려준다(그 주소:1514에서 받아 Graylog로 넣는다).
+    """
+    bind = (env.get("NB_SYSLOG_BIND") or "").strip()
+    return bind if bind and bind not in ("127.0.0.1", "0.0.0.0", "localhost") else None
+
+
 def _docker_status(name: str) -> str:
     try:
         out = subprocess.run(["docker", "inspect", "--format", "{{.State.Status}}", name], cwd=ROOT,
@@ -110,6 +120,7 @@ def status_report(with_wazuh: bool) -> dict[str, str | bool]:
         "baseline": (ROOT / "instance" / "baseline").is_dir(),
         "containers": containers,
         "graylog_reachable": _graylog_reachable(env.get("NB_GRAYLOG_URL", "http://127.0.0.1:9100")),
+        "relay_bind": relay_bind(env),
     }
 
 
@@ -122,6 +133,11 @@ def print_status(status: dict[str, str | bool]) -> None:
     for name, state in status["containers"].items():
         print(f"컨테이너 {name}: {state}")
     print(f"Graylog 응답: {ok(status['graylog_reachable'])}")
+    if status.get("relay_bind"):
+        print(f"pfSense syslog 중계기: {status['relay_bind']}:1514 -> Graylog (setup.ps1에서 자동 기동; "
+              "수동 기동은 python -m nobugs_tools.syslog_relay)")
+    else:
+        print("pfSense syslog 중계기: 생략(.env의 NB_SYSLOG_BIND가 루프백 - 연동 시 VMnet 호스트 IP로 바꾸세요)")
     print("\n다음으로 포털·대응 API·엔진을 각자 터미널에서 띄우세요(README '실행' 참고):")
     print("  .\\.venv\\Scripts\\python.exe -m uvicorn nobugs_portal.app:public_factory --factory --port 5100 "
          "--app-dir src")

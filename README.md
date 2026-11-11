@@ -192,7 +192,8 @@ Git Bash에서 `--agent-prefix`처럼 `/`로 시작하는 인자는 Windows 경�
 
 pfSense(VMware VMnet2, `172.16.50.2`)의 방화벽 로그를 Graylog로 모은다. pfSense 쪽은 **Status → System Logs →
 Settings → Remote Logging**에서 원격 서버를 `<VMnet 호스트 IP>:1514`, Contents를 Everything(또는 Firewall)으로 켠다.
-호스트 쪽은 중계기를 띄운다:
+호스트 쪽 중계기는 `.env`의 `NB_SYSLOG_BIND`를 VMnet 호스트 IP(예: `172.16.50.100`)로 바꿔 두면 **`scripts\setup.ps1`이
+자동으로 백그라운드로 띄운다**(이미 떠 있으면 생략). 따로 띄우려면:
 
 ```powershell
 python -m nobugs_tools.syslog_relay    # 172.16.50.100:1514에서 받아 GELF/TCP로 Graylog에 넣는다
