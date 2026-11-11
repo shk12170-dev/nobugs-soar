@@ -89,12 +89,14 @@ flowchart LR
         engine[대응 엔진 5200<br/>상태 기계·멱등·효과 확인·자동 원복]
         bnd[경계 시뮬레이터 5300<br/>S10]
         panel[실습 제어판 5102]
+        relay[syslog 중계기<br/>UDP 1514 → GELF/TCP]
     end
     subgraph soc[관제 스택 docker compose]
         gl[Graylog<br/>+ OpenSearch + MongoDB]
         n8n[n8n<br/>S1 중계]
         wz[Wazuh 매니저·에이전트<br/>web/dist FIM]
     end
+    pf[pfSense 172.16.50.2<br/>방화벽 filterlog] -- syslog UDP --> relay -- GELF/TCP --> gl
     portal -- GELF 이벤트 --> gl
     wz -- 변조 신호 wazuh_bridge --> gl
     gl -- S1 알림 --> n8n --> engine
@@ -107,6 +109,8 @@ flowchart LR
 
 포털은 이벤트만 내보내고 판단하지 않습니다. 판단·조치·원복은 대응 엔진 한 곳이 하고, 포털의 대응 API는
 일반 포털과 **다른 포트**로 분리돼 있어 외부에서 일반 포털로는 닿지 않습니다.
+
+구성 요소·포트·6단계 흐름·로그 수집 경로는 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)에 자세히 있습니다.
 
 ## 처음부터 한 번에(원클릭 설치)
 
