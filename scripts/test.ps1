@@ -4,7 +4,7 @@ $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
 if (-not (Test-Path .venv)) { python -m venv .venv }
 $py = Join-Path $root '.venv\Scripts\python.exe'
-& $py -m pip install -q -e ".[dev]"
+& $py -m pip install -q -e ".[dev]" -c constraints.txt
 & $py -m ruff check .
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 & $py -m pytest

@@ -64,6 +64,34 @@ def test_print_status_shows_every_check(capsys):
     assert "uvicorn nobugs_portal.app" in out   # 다음 단계 안내
 
 
+# ---- relay_bind (pfSense 중계기 기동 판단) ----
+
+
+@pytest.mark.parametrize("bind", ["127.0.0.1", "0.0.0.0", "localhost", "", None])
+def test_relay_bind_is_none_for_loopback_or_unset(bind):
+    env = {"NB_SYSLOG_BIND": bind} if bind is not None else {}
+    assert setup.relay_bind(env) is None
+
+
+def test_relay_bind_returns_the_vmnet_address_when_configured():
+    assert setup.relay_bind({"NB_SYSLOG_BIND": "172.16.50.100"}) == "172.16.50.100"
+
+
+def test_print_status_names_the_relay_when_a_vmnet_bind_is_set(capsys):
+    status = {"env_file": True, "web_dist": True, "baseline": True, "containers": {},
+              "graylog_reachable": True, "relay_bind": "172.16.50.100"}
+    setup.print_status(status)
+    out = capsys.readouterr().out
+    assert "172.16.50.100:1514" in out and "중계기" in out
+
+
+def test_print_status_says_relay_skipped_without_a_vmnet_bind(capsys):
+    status = {"env_file": True, "web_dist": True, "baseline": True, "containers": {},
+              "graylog_reachable": True, "relay_bind": None}
+    setup.print_status(status)
+    assert "생략" in capsys.readouterr().out
+
+
 # ---- step_seed_baseline / step_seed_demo (subprocess 흉내) ----
 
 

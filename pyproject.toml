@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=75"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -7,6 +7,7 @@ name = "nobugs-soar"
 version = "0.1.0"
 description = "공공기관 포털 보안 관제·자동 대응(SOAR) — 단독 설계·구현"
 requires-python = ">=3.12"
+license = "MIT"
 dependencies = [
   "fastapi>=0.115",
   "uvicorn>=0.30",
