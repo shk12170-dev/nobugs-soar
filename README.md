@@ -14,6 +14,22 @@
 
 AI 코딩 도구(Claude Code)를 보조로 썼고, 설계 결정과 검증은 본인이 했습니다. 실측값은 모두 이 PC에서 직접 잰 것이며 팀 PC 4대에서 잰 값과 섞지 않았습니다. 비밀값은 `.env`에만 두고 저장소에는 [.env.example](.env.example)만 둡니다.
 
+## 문서 안내
+
+처음 보는 분은 이 표에서 필요한 문서로 바로 갑니다.
+
+| 보고 싶은 것 | 문서 |
+| --- | --- |
+| 전체 구조·포트·대응 6단계·로그 수집 경로 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) |
+| 실제 구동 화면(제어판·엔진·포털·Graylog) | [docs/screenshots/](docs/screenshots/) |
+| 시연 녹화 대본(공격→탐지→대응→원복 한 사이클) | [docs/DEMO-SCRIPT.md](docs/DEMO-SCRIPT.md) |
+| 반복 측정 수치(N=5) | [docs/MEASUREMENTS.md](docs/MEASUREMENTS.md) |
+| 모듈별 출처·시험 중 발견·수정한 결함 | [docs/PROVENANCE.md](docs/PROVENANCE.md) |
+| 회고(무엇을·잘된 점·겪은 문제) | [docs/RETROSPECTIVE.md](docs/RETROSPECTIVE.md) |
+| 이력서·포트폴리오용 프로젝트 요약 | [docs/RESUME-PROJECT.md](docs/RESUME-PROJECT.md) |
+| 팀 코드를 안 보고 새로 쓴 기준(클린룸) | [docs/CLEANROOM.md](docs/CLEANROOM.md) |
+| 단계별 계획 · 구현 기준(동작 명세) | [docs/PLAN.md](docs/PLAN.md) · [docs/BEHAVIOR-SPEC.md](docs/BEHAVIOR-SPEC.md) |
+
 ## 상태
 
 **M6 완료, M7(측정·배포·문서) 진행 중 — S1·S4·S7·S8·S10·S12 여섯 케이스가 탐지부터 자동(또는 사람) 원복까지 자동으로 돕니다.** 파이썬 테스트 349건(새 venv에서 `pip install -e ".[dev]" -c constraints.txt` 뒤 `pytest`로 2026-11-11 확인), 프론트 단위 23건, 브라우저 E2E 7건이 통과합니다.
