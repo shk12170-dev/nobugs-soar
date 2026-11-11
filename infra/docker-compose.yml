@@ -46,10 +46,10 @@ services:
     ports:
       - "127.0.0.1:9100:9000"            # 웹 화면·API
       - "127.0.0.1:12301:12201/udp"      # 포털 이벤트(GELF)
-      - "127.0.0.1:12301:12201/tcp"
-      # pfSense 방화벽 로그(syslog). pfSense는 VMware 망에 있어 127.0.0.1로는 닿지 못하므로
-      # NB_SYSLOG_BIND에 VMnet 호스트 주소(예: 172.16.50.100)를 넣는다. 기본값은 루프백이다.
-      - "${NB_SYSLOG_BIND:-127.0.0.1}:1514:1514/udp"
+      - "127.0.0.1:12301:12201/tcp"      # 포털 이벤트(GELF) + pfSense 중계기가 GELF로 넣는 경로
+      # pfSense 방화벽 로그(syslog)는 별도 포트를 열지 않는다. Docker Desktop(WSL2)은 UDP 게시 포트 전달이
+      # 불안정해(외부·루프백 모두 실측으로 드롭 확인) syslog를 직접 받지 못한다. 대신 호스트에서 도는
+      # nobugs_tools.syslog_relay가 VMnet 주소(NB_SYSLOG_BIND:1514)로 받아 위 GELF TCP(12301)로 넣는다.
     volumes: [graylog_data:/usr/share/graylog/data]
     networks: [soc]
     restart: unless-stopped
@@ -86,8 +86,8 @@ services:
   # S1 알림을 n8n이 먼저 받아 엔진 웹훅으로 넘기고(이미 검증된 티켓·차단 로직을 그대로 쓴다) Discord 알림도
   # n8n에서 직접 보낸다 — 강사 과제의 "탐지 → n8n 자동 대응" 흐름을 보여주는 용도.
   n8n:
-    image: docker.n8n.io/n8nio/n8n:latest
-    mem_limit: 1536m    # latest n8n은 Node 힙이 512m에서 OOM-crash(실제로 겪음) - 여유 있게 잡는다
+    image: docker.n8n.io/n8nio/n8n:2.37.7   # 실측에 쓴 버전으로 고정(latest는 재현이 깨진다)
+    mem_limit: 1536m    # n8n은 Node 힙이 512m에서 OOM-crash(실제로 겪음) - 여유 있게 잡는다
     environment:
       TZ: Asia/Seoul
       N8N_PROTOCOL: http

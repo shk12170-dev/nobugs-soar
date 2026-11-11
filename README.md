@@ -16,7 +16,7 @@ AI 코딩 도구(Claude Code)를 보조로 썼고, 설계 결정과 검증은 �
 
 ## 상태
 
-**M6 완료, M7(측정·배포·문서) 진행 중 — S1·S4·S7·S8·S10·S12 여섯 케이스가 탐지부터 자동(또는 사람) 원복까지 자동으로 돕니다.** 파이썬 테스트 306건, 프론트 단위 23건, 브라우저 E2E 7건이 통과합니다.
+**M6 완료, M7(측정·배포·문서) 진행 중 — S1·S4·S7·S8·S10·S12 여섯 케이스가 탐지부터 자동(또는 사람) 원복까지 자동으로 돕니다.** 파이썬 테스트 343건(깨끗한 클론에서 `pip install -e ".[dev]"` 뒤 `pytest`로 2026-11-11 재확인), 프론트 단위 23건, 브라우저 E2E 7건이 통과합니다.
 
 실제 시험(2026-11-10, Graylog·포털·대응 엔진·경계 시뮬레이터를 실제로 띄워 확인):
 - **S1**: 공격 후 10초 만에 차단·효과 확인, TTL 30초 뒤 자동 원복, 같은 IP의 티켓 2개도 교착 없이 함께 원복.
@@ -55,7 +55,7 @@ M7 반복 측정 자동화(`python -m nobugs_tools.measure`)는 전체 스택(Wa
 | Graylog 연동(GELF 입력·집계 정의·엔진 웹훅 알림) | 확인 | 위 6케이스 전부 |
 | Wazuh 매니저+에이전트 실연동(S7 FIM) | 확인 | docs/PROVENANCE.md(M6) |
 | n8n 자동 대응(S1: Graylog → n8n → 대응 엔진) | 확인 | 실제 S1 공격으로 n8n 경유 티켓 생성·차단·효과 확인(docs/PROVENANCE.md). S1의 Graylog 알림 대상은 n8n 하나뿐이라 이 경로로만 발동한다 |
-| pfSense 실제 VM(VMware) | 부분 | 수업 실습 때 설치한 pfSense CE 2.7.2 VM이 기동·웹 UI 응답(`http://172.16.50.2`)까지 확인됨. Graylog에 syslog 입력(UDP 1514)을 만들고 VMnet 주소로 포트를 열어 뒀지만, **pfSense에서 원격 syslog를 보내도록 설정하고 실제 방화벽 로그가 Graylog에 들어오는 것까지는 아직 확인하지 않았다**(손으로 만든 시험 패킷은 입력까지 도달했으나 Graylog 디코더가 메시지로 만들지 않았다). 차단 연동도 아직 |
+| pfSense 방화벽 로그 → Graylog(실제 VM) | 확인 | pfSense CE 2.7.2 VM(VMware)에서 원격 syslog를 켜고, 호스트 중계기(`nobugs_tools.syslog_relay`)를 거쳐 실제 **방화벽 차단 로그(filterlog)와 시스템 로그가 Graylog에 들어오는 것**을 실측(source=172.16.50.2). pfSense WAN의 막힌 포트로 접속을 시도해 filterlog `block,in`이 Graylog에 쌓이는 것을 확인. 중계기가 필요한 이유·막혔던 점은 아래 "pfSense 방화벽 로그 수집" 참고. pfSense **차단 자동화**(엔진이 pfSense를 조작해 IP 차단)는 아직 범위 밖 |
 | 경계 시뮬레이터(`nobugs_boundary`, S10) | 부분 | 상태만 관리하는 시뮬레이터다. 실제 패킷 차단·실제 프록시 연동은 범위 밖([docs/PLAN.md](docs/PLAN.md) M5) |
 | N=5 반복 측정 자동화(`nobugs_tools.measure`) | 확인 | docs/MEASUREMENTS.md |
 | 원클릭 설치(`scripts\setup.ps1`) | 확인 | docs/PROVENANCE.md |
@@ -63,15 +63,50 @@ M7 반복 측정 자동화(`python -m nobugs_tools.measure`)는 전체 스택(Wa
 | 프론트 E2E(Playwright) | 확인 | 7건 통과 |
 | 다른 팀과의 공방전 | 미확인 | 일정·대상·규칙·채점 기준 미정(팀 캡스톤 쪽 결정 사항, 이 저장소 밖) |
 
-## 구성 (목표)
+## 알려진 한계
 
+숨기지 않고 적어 둡니다. 해결하면 이 표에서 지웁니다.
+
+| 항목 | 현재 상태 | 이유·대안 |
+| --- | --- | --- |
+| 엔진 조회 API 인증 | `GET /api/v1/tickets*`, `/api/v1/notifications`, 대시보드 `/`는 키 없이 읽힌다(쓰기·웹훅은 `X-Engine-Key` 필요) | 엔진은 `127.0.0.1`에만 열린다(`nobugs_engine/__main__.py`). 다른 PC에서 보게 하려면 조회에도 키를 요구하도록 바꿔야 한다 |
+| Python 3.12 | CI 행렬로만 확인 | 개발 PC에는 3.14만 있다. 3.14에서는 새 클론으로 전체 테스트 통과를 확인했다 |
+| 새 클론 전체 설치 | 파이썬 쪽만 확인 | 새 클론에서 `setup.ps1`로 docker 스택까지 처음부터 올리는 경로는 아직 시험하지 않았다(지금 PC에는 이미 떠 있는 스택이 있어 포트가 겹친다) |
+| pfSense 연동 | 부분 | 위 인프라 표 참고 |
+| S7 N=5 측정 | 4/5 | 기준본 파일 4개를 돌려 써 5회차가 재알림 묵음 기간(10분)에 걸린다. 측정 설계의 한계 |
+
+의존성 버전은 [constraints.txt](constraints.txt)로 고정합니다(새 클론에서 설치·테스트 통과를 확인한 조합). CI와
+`scripts\*.ps1`이 `-c constraints.txt`로 설치합니다. 버전을 올릴 때는 Dependabot PR이 CI를 통과하는지 봅니다.
+
+## 구성
+
+```mermaid
+flowchart LR
+    atk[공격 스크립트<br/>nobugs_tools.attacks] --> portal
+    subgraph app[포털 PC 한 대]
+        portal[포털 5100<br/>FastAPI + React]
+        ctl[대응 API 5101<br/>별도 포트]
+        engine[대응 엔진 5200<br/>상태 기계·멱등·효과 확인·자동 원복]
+        bnd[경계 시뮬레이터 5300<br/>S10]
+        panel[실습 제어판 5102]
+    end
+    subgraph soc[관제 스택 docker compose]
+        gl[Graylog<br/>+ OpenSearch + MongoDB]
+        n8n[n8n<br/>S1 중계]
+        wz[Wazuh 매니저·에이전트<br/>web/dist FIM]
+    end
+    portal -- GELF 이벤트 --> gl
+    wz -- 변조 신호 wazuh_bridge --> gl
+    gl -- S1 알림 --> n8n --> engine
+    gl -- S4·S7·S8·S10·S12 알림 --> engine
+    engine -- IP 차단·계정 잠금·파일 복구 --> ctl
+    engine --> bnd
+    ctl --> portal
+    engine -. 티켓·알림 .-> panel
 ```
-공격 스크립트 ─▶ 포털(FastAPI + React) ──GELF──▶ Graylog ──탐지 이벤트──▶ 대응 엔진(Python)
-                     ▲                                  ▲                          │ 차단·잠금·복구
-                     │                                  └── Wazuh(FIM) 경보 ───────┤
-                     └──────── 차단 목록·세션 회수 ◀───────────────────────────────┤
-                                                                   티켓 저장소·대시보드·알림 ◀┘
-```
+
+포털은 이벤트만 내보내고 판단하지 않습니다. 판단·조치·원복은 대응 엔진 한 곳이 하고, 포털의 대응 API는
+일반 포털과 **다른 포트**로 분리돼 있어 외부에서 일반 포털로는 닿지 않습니다.
 
 ## 처음부터 한 번에(원클릭 설치)
 
@@ -85,7 +120,9 @@ M7 반복 측정 자동화(`python -m nobugs_tools.measure`)는 전체 스택(Wa
 보며 시연해야 해서 이 스크립트가 직접 띄우지는 않습니다. 이미 떠 있는 스택에 설정만 다시 올리려면
 `-SkipDocker`, 프론트를 다시 빌드하지 않으려면 `-SkipFrontend`를 붙입니다.
 
-## 실행 (M1 시점: 포털 백엔드만)
+## 단계별 수동 실행
+
+아래는 원클릭 설치를 쓰지 않고 구성 요소를 하나씩 띄워 볼 때의 명령입니다. 먼저 포털 백엔드만 띄웁니다.
 
 ```powershell
 py -m venv .venv; .\.venv\Scripts\python.exe -m pip install -e ".[dev]"
@@ -150,6 +187,28 @@ python -m nobugs_tools.attacks s7 --file-key index.html                         
 ```
 
 Git Bash에서 `--agent-prefix`처럼 `/`로 시작하는 인자는 Windows 경로로 자동 변환되니 `MSYS_NO_PATHCONV=1`을 붙인다.
+
+### pfSense 방화벽 로그 수집
+
+pfSense(VMware VMnet2, `172.16.50.2`)의 방화벽 로그를 Graylog로 모은다. pfSense 쪽은 **Status → System Logs →
+Settings → Remote Logging**에서 원격 서버를 `<VMnet 호스트 IP>:1514`, Contents를 Everything(또는 Firewall)으로 켠다.
+호스트 쪽은 중계기를 띄운다:
+
+```powershell
+python -m nobugs_tools.syslog_relay    # 172.16.50.100:1514에서 받아 GELF/TCP로 Graylog에 넣는다
+```
+
+중계기를 **거치는 이유**(이번에 실제로 막혀서 하나씩 뚫은 것들):
+
+1. **Windows 방화벽**이 인바운드 UDP 1514를 막고 있었다 → 랩 망(`172.16.50.0/24`)만 허용하도록 규칙을 좁혔다.
+2. **Docker Desktop(WSL2)은 UDP 게시 포트 전달이 불안정**하다. 외부 호스트發 UDP는 컨테이너로 거의 안 넘어가고,
+   루프백으로 되쏴도 드롭된다(실측: 20건 중 0건). 반면 호스트 네이티브 UDP 소켓은 외부 패킷을 정상 수신하고,
+   Docker의 **TCP 전달은 안정적**이다. 그래서 중계기가 네이티브 소켓으로 받아 **GELF/TCP**로 Graylog에 넣는다.
+3. 중계기 소켓에 **`SO_REUSEADDR`를 쓰면 Windows에서 외부 UDP 수신이 막힌다** → 쓰지 않는다.
+
+GELF의 `host`를 보낸 IP로 넣어 Graylog `source`가 `172.16.50.2`(pfSense)로 찍힌다(pfSense syslog는 호스트네임
+필드가 없어 UDP 출발지로만 구분된다). 확인: pfSense WAN의 막힌 포트로 접속을 시도하면 Graylog에서
+`filterlog ... block,in` 메시지가 `source:172.16.50.2`로 쌓인다.
 
 ### 반복 측정(M7)
 
