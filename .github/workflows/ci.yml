@@ -12,7 +12,7 @@ jobs:
       matrix:
         python-version: ["3.12", "3.14"]   # 3.14는 개발 PC 버전(전체 통과 확인), 3.12는 pyproject 최소 지원
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
@@ -35,7 +35,7 @@ jobs:
   web:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
