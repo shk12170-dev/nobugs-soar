@@ -67,7 +67,7 @@
   설정·상태 대조). 실제로 돌려 확인(아래 PROVENANCE). 포털·대응 API·엔진은 여러 터미널에서 보며 시연해야 해서
   이 스크립트가 직접 띄우지는 않고, 끝에 다음 명령을 안내한다.
 - README 검증 표(확인/부분/미확인 구분) ✅ — 케이스별·인프라별 두 표, 모두 위 실측·PROVENANCE 근거를 그대로 연결
-- 아키텍처 그림(README 구성도) ✅, 회고 초안(docs/RETROSPECTIVE.md) ✅, 스크린샷·이력서 갱신 — 아직
+- 아키텍처 그림(README 구성도, docs/ARCHITECTURE.md) ✅, 회고 초안(docs/RETROSPECTIVE.md) ✅, 스크린샷(docs/screenshots/) ✅, 이력서용 경력 기술서(docs/RESUME-PROJECT.md) ✅
 - **완료 조건 중 일부 확인(2026-11-11):** 새 클론(Python 3.14)에서 `pip install -e ".[dev]"` 뒤 `pytest` 전체가
   통과하는 것까지는 확인했다(파이썬 쪽 재현). **미확인:** 새 클론에서 `scripts\setup.ps1`로 docker 스택까지
   처음부터 올리는 전체 경로, Python 3.12 실행(CI 행렬에 추가했으나 이 PC에는 3.14만 있다).

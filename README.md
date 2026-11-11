@@ -111,6 +111,7 @@ flowchart LR
 일반 포털과 **다른 포트**로 분리돼 있어 외부에서 일반 포털로는 닿지 않습니다.
 
 구성 요소·포트·6단계 흐름·로그 수집 경로는 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)에 자세히 있습니다.
+실제 화면(제어판·엔진 티켓·포털·Graylog filterlog)은 [docs/screenshots/](docs/screenshots/README.md)에 있습니다.
 
 ## 처음부터 한 번에(원클릭 설치)
 
