@@ -20,6 +20,7 @@ AI 코딩 도구(Claude Code)를 보조로 썼고, 설계 결정과 검증은 �
 
 | 보고 싶은 것 | 문서 |
 | --- | --- |
+| **직접 실행하고 새 케이스(S6 등) 구현해 보기 — 단계별 실습** | [docs/MANUAL.md](docs/MANUAL.md) |
 | 전체 구조·포트·대응 6단계·로그 수집 경로 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) |
 | 실제 구동 화면(제어판·엔진·포털·Graylog) | [docs/screenshots/](docs/screenshots/) |
 | 시연 녹화 대본(공격→탐지→대응→원복 한 사이클) | [docs/DEMO-SCRIPT.md](docs/DEMO-SCRIPT.md) |
@@ -32,7 +33,7 @@ AI 코딩 도구(Claude Code)를 보조로 썼고, 설계 결정과 검증은 �
 
 ## 상태
 
-**M6 완료, M7(측정·배포·문서) 진행 중 — S1·S4·S7·S8·S10·S12 여섯 케이스가 탐지부터 자동(또는 사람) 원복까지 자동으로 돕니다.** 파이썬 테스트 349건(새 venv에서 `pip install -e ".[dev]" -c constraints.txt` 뒤 `pytest`로 2026-11-11 확인), 프론트 단위 23건, 브라우저 E2E 7건이 통과합니다.
+**M6 완료, M7(측정·배포·문서) 진행 중 — S1·S4·S7·S8·S10·S12 여섯 케이스가 탐지부터 자동(또는 사람) 원복까지 자동으로 돕니다.** 파이썬 테스트 367건(2026-11-12 이 PC의 venv에서 `pytest` 통과 확인. 새 venv에서 `pip install -e ".[dev]" -c constraints.txt`부터 다시 확인한 것은 2026-11-11, 349건 시점), 프론트 단위 23건, 브라우저 E2E 7건이 통과합니다.
 
 실제 시험(2026-11-10, Graylog·포털·대응 엔진·경계 시뮬레이터를 실제로 띄워 확인):
 - **S1**: 공격 후 10초 만에 차단·효과 확인, TTL 30초 뒤 자동 원복, 같은 IP의 티켓 2개도 교착 없이 함께 원복.
@@ -138,7 +139,14 @@ flowchart LR
 ```
 
 끝나면 상태 대조 결과와 함께 포털·대응 API·엔진을 띄우는 명령을 안내합니다. 세 프로세스는 각자 터미널에서
-보며 시연해야 해서 이 스크립트가 직접 띄우지는 않습니다. 이미 떠 있는 스택에 설정만 다시 올리려면
+보며 시연해야 해서 이 스크립트가 직접 띄우지는 않습니다. 띄울 때는 `.env`를 읽어 넣어 주는 실행기를 씁니다
+(그냥 uvicorn으로 띄우면 엔진 키가 비어 Graylog 알림이 401로 막히고 포털이 이벤트를 보내지 않습니다):
+
+```powershell
+.\.venv\Scripts\python.exe -m nobugs_tools.run portal    # 5100   (control 5101 · engine 5200 · panel 5102 · boundary 5300)
+```
+
+ 이미 떠 있는 스택에 설정만 다시 올리려면
 `-SkipDocker`, 프론트를 다시 빌드하지 않으려면 `-SkipFrontend`를 붙입니다.
 
 ## 단계별 수동 실행
