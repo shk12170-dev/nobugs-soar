@@ -29,7 +29,7 @@ AI 코딩 도구(Claude Code)를 보조로 썼고, 설계 결정과 검증은 �
 - **S7**(홈페이지 변조): 공격 스크립트로 포털이 실제로 서빙하는 파일(`web/dist`)을 직접 바꿔치고 방문자 접근을 재현 → 실제 Wazuh 에이전트가 실시간 FIM으로 변조를 감지 → bridge가 기준본과 다를 때만 `tamper-signal`을 Graylog로 전달 → 변조 신호 + 방문자 접근(2xx)이 같은 자산·파일에서 10분 안에 모이면 Graylog가 엔진 웹훅을 호출 → 엔진이 포털 대응 API로 파일을 기준본으로 복구하고 티켓이 `restored`로 바로 넘어감(복구 자체가 원복이라 자동 원복은 없음) → 사람이 `close`로 마무리. 기준본에 없는 새 파일이면 격리(`quarantine`)로 분기.
 - 시험 중 발견·수정한 버그 2건(상세: [docs/PROVENANCE.md](docs/PROVENANCE.md)): ① Graylog 필드 값 계산이 `src_ip`를 필수로 요구해 `tamper-signal`(src_ip 없음) 쪽에서 이벤트 생성 자체가 조용히 실패 → S7만 `require_values=false`로 완화. ② 엔진 웹훅 알림 본문에 `asset_id`/`file_key`가 전혀 담겨 있지 않아 엔진이 매번 "보호 대상 아님"으로 조용히 무시(Graylog는 2xx로 보고 성공 처리) → 본문에 두 필드 추가.
 
-M7 반복 측정 자동화(`python -m nobugs_tools.measure`)는 전체 스택(Wazuh 포함)으로 S1·S4·S7·S8·S10·S12 여섯 케이스를 각 N=5로 돌려 30회 중 29회 확인했습니다(S7 5회차 1건은 기준본 파일 4개를 돌려 쓰다 재알림 묵음 기간에 걸린 측정 설계의 한계였고, 실제 복구는 끝까지 됐습니다 — 결과는 [docs/MEASUREMENTS.md](docs/MEASUREMENTS.md)). 원클릭 설치(`scripts\setup.ps1`)도 `-WithWazuh`까지 포함해 실제로 여러 번 돌려 확인했습니다 — .env 생성, docker compose up, Graylog 준비 대기, S7 기준본 저장, Graylog 정의 설정, 상태 대조까지 한 번에 하고 끝에 포털·엔진을 띄우는 다음 명령을 안내합니다(시험 중 발견·수정한 결함은 [docs/PROVENANCE.md](docs/PROVENANCE.md)). 아키텍처 그림·스크린샷·회고는 아직입니다. 단계별 계획은 [docs/PLAN.md](docs/PLAN.md), 구현할 동작의 기준은 [docs/BEHAVIOR-SPEC.md](docs/BEHAVIOR-SPEC.md)입니다.
+M7 반복 측정 자동화(`python -m nobugs_tools.measure`)는 전체 스택(Wazuh 포함)으로 S1·S4·S7·S8·S10·S12 여섯 케이스를 각 N=5로 돌려 30회 중 29회 확인했습니다(S7 5회차 1건은 기준본 파일 4개를 돌려 쓰다 재알림 묵음 기간에 걸린 측정 설계의 한계였고, 실제 복구는 끝까지 됐습니다 — 결과는 [docs/MEASUREMENTS.md](docs/MEASUREMENTS.md)). 원클릭 설치(`scripts\setup.ps1`)도 `-WithWazuh`까지 포함해 실제로 여러 번 돌려 확인했습니다 — .env 생성, docker compose up, Graylog 준비 대기, S7 기준본 저장, Graylog 정의 설정, 상태 대조까지 한 번에 하고 끝에 포털·엔진을 띄우는 다음 명령을 안내합니다(시험 중 발견·수정한 결함은 [docs/PROVENANCE.md](docs/PROVENANCE.md)). 구성도는 아래 "구성", 회고 초안은 [docs/RETROSPECTIVE.md](docs/RETROSPECTIVE.md)에 있습니다. 단계별 계획은 [docs/PLAN.md](docs/PLAN.md), 구현할 동작의 기준은 [docs/BEHAVIOR-SPEC.md](docs/BEHAVIOR-SPEC.md)입니다.
 
 ## 검증 표
 
@@ -252,3 +252,7 @@ cd ..; $env:NB_DATABASE_URL='sqlite:///instance/portal.sqlite3'
 
 - 동작 명세와 테스트를 먼저 쓰고 구현합니다. 각 단계는 시연 가능한 결과로 끝납니다.
 - AI 코딩 도구(Claude Code)를 보조로 사용합니다. 설계 결정과 검증은 본인이 합니다.
+
+## 라이선스
+
+[MIT](LICENSE). 팀 원본 저장소의 코드는 포함하지 않습니다(출처는 [docs/PROVENANCE.md](docs/PROVENANCE.md)).
