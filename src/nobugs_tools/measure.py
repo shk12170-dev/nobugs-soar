@@ -157,8 +157,16 @@ def _s12_round(i: int, *, base: str, engine: str, wait: float = 40, salt: int = 
                 detail="무해한 폭주는 차단하지 않는 설계 확인")
 
 
+# S7 Graylog 정의의 재알림 묵음 기간(definitions.s7_tamper_then_access의 grace 10분). 같은 자산·파일 키를 이 안에
+# 다시 변조하면 Graylog가 알림을 보내지 않아, 측정이 "timeout"으로 잘못 끝난다(2026-11-10 N=5 측정 5회차에서 실측).
+S7_GRACE_SECONDS = 600.0
+# 이번 실행에서 (기준본 폴더, 파일 키)를 마지막으로 변조한 시각(time.monotonic)
+_s7_last_used: dict[tuple[str, str], float] = {}
+
+
 def _s7_round(i: int, *, base: str, engine: str, web_root: str, baseline_dir: str, asset_id: str,
-             timeout: float = 90, salt: int = 0, **_: Any) -> Round:
+             timeout: float = 90, salt: int = 0, s7_wait_grace: bool = False,
+             grace_seconds: float = S7_GRACE_SECONDS, **_: Any) -> Round:
     from nobugs_portal import baseline
 
     keys = sorted(baseline.baseline_keys(baseline_dir))
@@ -166,6 +174,18 @@ def _s7_round(i: int, *, base: str, engine: str, web_root: str, baseline_dir: st
         return Round("S7", i, "-", "no_baseline", None, False, detail="기준본이 없음(seed-baseline 먼저)")
     file_key = keys[(i - 1) % len(keys)]
     group_key = f"{asset_id}@{file_key}"
+    slot = (str(Path(baseline_dir).resolve()), file_key)
+    last = _s7_last_used.get(slot)
+    if last is not None:
+        remaining = grace_seconds - (time.monotonic() - last)
+        if remaining > 0:
+            if not s7_wait_grace:
+                return Round("S7", i, group_key, "grace_skip", None, False,
+                             detail=f"같은 파일을 {grace_seconds - remaining:.0f}초 전에 변조함 - 재알림 묵음 "
+                                    f"{grace_seconds:.0f}초 안이라 잴 수 없음(기준본 파일을 늘리거나 --s7-wait-grace)")
+            print(f"  S7 회차 {i}: {file_key} 재알림 묵음이 끝날 때까지 {remaining:.0f}초 기다립니다")
+            time.sleep(remaining)
+    _s7_last_used[slot] = time.monotonic()
     since, t0 = datetime.now(UTC), time.monotonic()
     attacks.s7_deface(base, web_root, file_key, source=f"127.26.{salt}.{i}")
     ticket = poll_until(engine, "S7", group_key, {"restored", "quarantined"}, timeout=timeout, interval=2.0,
@@ -215,6 +235,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--salt", type=int, default=int(time.time()) % 200,
                         help="출발지 IP 대역을 바꿔 쓰는 값. 기본은 실행 시각 기준으로 매번 바뀐다 - 같은 값으로 "
                              "다시 돌리면 이전 회차와 같은 IP를 또 써서 로그인 횟수 제한에 걸릴 수 있다")
+    parser.add_argument("--s7-wait-grace", action="store_true",
+                        help="S7 회차가 기준본 파일 수보다 많아 같은 파일을 다시 쓸 때, 재알림 묵음(10분)이 끝날 "
+                             "때까지 기다렸다 잰다. 없으면 그 회차는 grace_skip(미확인)으로 바로 넘어간다")
     args = parser.parse_args(argv)
 
     cases = list(ROUND_FUNCS) if args.all else [c.strip().upper() for c in (args.case or "").split(",") if c.strip()]
@@ -223,7 +246,7 @@ def main(argv: list[str] | None = None) -> int:
 
     kwargs = {"base": args.base, "engine": args.engine, "web_root": args.web_root,
              "baseline_dir": args.baseline_dir, "asset_id": args.asset_id, "gelf_port": args.gelf_port,
-             "salt": args.salt}
+             "salt": args.salt, "s7_wait_grace": args.s7_wait_grace}
     print(f"salt={args.salt} (출발지 IP 대역에 씀)")
     all_rounds: dict[str, list[Round]] = {}
     for case in cases:

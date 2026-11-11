@@ -111,6 +111,7 @@ flowchart LR
 일반 포털과 **다른 포트**로 분리돼 있어 외부에서 일반 포털로는 닿지 않습니다.
 
 구성 요소·포트·6단계 흐름·로그 수집 경로는 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)에 자세히 있습니다.
+실제 화면(제어판·엔진 티켓·포털·Graylog filterlog)은 [docs/screenshots/](docs/screenshots/README.md)에 있습니다.
 
 ## 처음부터 한 번에(원클릭 설치)
 
@@ -223,6 +224,7 @@ GELF의 `host`를 보낸 IP로 넣어 Graylog `source`가 `172.16.50.2`(pfSense)
 ```powershell
 python -m nobugs_tools.measure --case S1,S4,S8,S10,S12 --rounds 5 --out docs/MEASUREMENTS.md
 python -m nobugs_tools.measure --all --rounds 5   # S7까지 포함(Wazuh 필요)
+python -m nobugs_tools.measure --case S7 --rounds 5 --s7-wait-grace   # 기준본 파일보다 회차가 많을 때 묵음(10분)을 기다려 잰다
 ```
 
 도구를 다시 돌릴 때는 `--salt`(기본은 실행 시각 기준)가 바뀌어 출발지 IP가 겹치지 않는다 — 같은 IP를 또 쓰면
