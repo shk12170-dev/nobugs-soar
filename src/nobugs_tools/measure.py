@@ -10,13 +10,13 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import time
 import urllib.error
 import urllib.request
 from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
+from functools import lru_cache
 from http.cookiejar import CookieJar
 from pathlib import Path
 from typing import Any
@@ -38,10 +38,17 @@ def _engine_call(engine_base: str, method: str, path: str, engine_key: str = "",
         return json.loads(response.read())
 
 
+@lru_cache(maxsize=1)
+def _engine_key() -> str:
+    # 측정 도구는 실행기(nobugs_tools.run) 없이 그냥 터미널에서 돌리므로 .env도 직접 읽는다(터미널 값 우선)
+    from .graylog import load_env
+
+    return load_env().get("NB_ENGINE_KEY", "")
+
+
 def _tickets(engine_base: str) -> list[dict[str, Any]]:
-    # 엔진이 조회 인증(NB_ENGINE_READ_AUTH)을 켰을 때도 읽을 수 있게 .env의 엔진 키를 붙인다
-    key = os.environ.get("NB_ENGINE_KEY", "")
-    return _engine_call(engine_base, "GET", "/api/v1/tickets?limit=200", key)["data"]["items"]
+    # 엔진이 조회 인증(NB_ENGINE_READ_AUTH)을 켰을 때도 읽을 수 있게 엔진 키를 붙인다
+    return _engine_call(engine_base, "GET", "/api/v1/tickets?limit=200", _engine_key())["data"]["items"]
 
 
 def _created_at(ticket: dict[str, Any]) -> datetime:
