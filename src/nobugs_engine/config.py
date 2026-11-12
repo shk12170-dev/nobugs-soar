@@ -16,6 +16,9 @@ def _bool(value: str | None, default: bool) -> bool:
 class EngineSettings:
     database_url: str = "sqlite:///instance/engine.sqlite3"
     engine_key: str = ""                            # Graylog -> 엔진 웹훅 인증 키
+    # 켜면 티켓·알림 조회와 대시보드에도 X-Engine-Key를 요구한다(엔진을 다른 PC에 보여 줄 때). 기본은 꺼짐:
+    # 엔진은 127.0.0.1에만 열리므로 같은 PC의 조회는 키 없이 허용한다.
+    read_auth: bool = False
     control_url: str = "http://127.0.0.1:5101"      # 포털 대응 API(별도 포트)
     control_key: str = ""                           # 엔진 -> 포털 대응 API 키
     probe_base_url: str = "http://127.0.0.1:5100"   # 효과 확인에 쓰는 일반 포털 주소
@@ -50,6 +53,7 @@ class EngineSettings:
         return cls(
             database_url=e.get("NB_ENGINE_DATABASE_URL", d.database_url),
             engine_key=e.get("NB_ENGINE_KEY", ""),
+            read_auth=_bool(e.get("NB_ENGINE_READ_AUTH"), d.read_auth),
             control_url=e.get("NB_ENGINE_CONTROL_URL", d.control_url),
             control_key=e.get("NB_RESPONSE_API_KEY", ""),
             probe_base_url=e.get("NB_ENGINE_PROBE_URL", d.probe_base_url),

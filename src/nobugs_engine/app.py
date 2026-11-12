@@ -90,6 +90,13 @@ def create_engine_app(settings: EngineSettings | None = None, engine: Engine | N
         if not settings.engine_key or not hmac.compare_digest(x_engine_key.encode(), settings.engine_key.encode()):
             raise PermissionError
 
+    def require_read_key(x_engine_key: str = Header(default="")) -> None:
+        # 조회 인증은 설정으로 켤 때만 건다(README "알려진 한계"의 엔진 조회 API 인증)
+        if settings.read_auth:
+            require_key(x_engine_key)
+
+    reader = [Depends(require_read_key)]
+
     @app.exception_handler(PermissionError)
     async def _denied(_: Request, __: PermissionError) -> JSONResponse:
         return _error(401, "UNAUTHORIZED", "엔진 키가 없거나 틀립니다.")
@@ -106,12 +113,12 @@ def create_engine_app(settings: EngineSettings | None = None, engine: Engine | N
     async def webhook(detection: Detection):
         return {"data": await run_in_threadpool(engine.handle, detection)}
 
-    @app.get("/api/v1/tickets")
+    @app.get("/api/v1/tickets", dependencies=reader)
     def list_tickets(status: str | None = None, limit: int = 100):
         with store.session() as s:
             return {"data": {"items": [ticket_out(t) for t in store.list(s, status, min(max(limit, 1), 200))]}}
 
-    @app.get("/api/v1/tickets/{ticket_id}")
+    @app.get("/api/v1/tickets/{ticket_id}", dependencies=reader)
     def get_ticket(ticket_id: str):
         with store.session() as s:
             try:
@@ -140,13 +147,13 @@ def create_engine_app(settings: EngineSettings | None = None, engine: Engine | N
         except InvalidTransition as exc:
             return _error(409, "INVALID_TRANSITION", str(exc))
 
-    @app.get("/api/v1/notifications")
+    @app.get("/api/v1/notifications", dependencies=reader)
     def notifications(limit: int = 50):
         items = store.notifications(min(max(limit, 1), 200))
         return {"data": {"items": [{"id": n.id, "created_at": n.created_at.isoformat() + "Z", "content": n.content}
                                    for n in items]}}
 
-    @app.get("/", response_class=HTMLResponse)
+    @app.get("/", response_class=HTMLResponse, dependencies=reader)
     def dashboard():
         with store.session() as s:
             rows = "".join(

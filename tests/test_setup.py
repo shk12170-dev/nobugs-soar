@@ -61,7 +61,7 @@ def test_print_status_shows_every_check(capsys):
     setup.print_status(status)
     out = capsys.readouterr().out
     assert "확인" in out and "미확인" in out and "nobugs-soc-graylog-1" in out and "running" in out
-    assert "uvicorn nobugs_portal.app" in out   # 다음 단계 안내
+    assert "nobugs_tools.run portal" in out and "nobugs_tools.run engine" in out   # 다음 단계 안내
 
 
 # ---- relay_bind (pfSense 중계기 기동 판단) ----

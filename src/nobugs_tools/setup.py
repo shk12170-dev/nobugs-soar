@@ -138,12 +138,9 @@ def print_status(status: dict[str, str | bool]) -> None:
               "수동 기동은 python -m nobugs_tools.syslog_relay)")
     else:
         print("pfSense syslog 중계기: 생략(.env의 NB_SYSLOG_BIND가 루프백 - 연동 시 VMnet 호스트 IP로 바꾸세요)")
-    print("\n다음으로 포털·대응 API·엔진을 각자 터미널에서 띄우세요(README '실행' 참고):")
-    print("  .\\.venv\\Scripts\\python.exe -m uvicorn nobugs_portal.app:public_factory --factory --port 5100 "
-         "--app-dir src")
-    print("  .\\.venv\\Scripts\\python.exe -m uvicorn nobugs_portal.control:control_factory --factory --port 5101 "
-         "--app-dir src")
-    print("  .\\.venv\\Scripts\\python.exe -m nobugs_engine")
+    print("\n다음으로 포털·대응 API·엔진(+제어판)을 각자 터미널에서 띄우세요(.env를 읽어 넣어 줍니다, docs/MANUAL.md):")
+    for target in ("portal", "control", "engine", "panel"):
+        print(f"  .\\.venv\\Scripts\\python.exe -m nobugs_tools.run {target}")
 
 
 def run_setup(with_wazuh: bool = False, skip_docker: bool = False, live: bool = False) -> dict[str, str | bool]:

@@ -205,3 +205,15 @@ def test_measure_case_records_a_round_as_an_error_instead_of_crashing_the_batch(
     # 포털 주소가 없어 공격 호출 자체가 예외를 던지는 상황을 흉내낸다(실제로는 429/차단된 IP로 겪은 문제).
     rows = measure.measure_case("S1", 2, base="http://127.0.0.1:1", engine=fake_engine, timeout=0.1)
     assert len(rows) == 2 and all(r.status == "error" and not r.ok for r in rows)
+
+
+def test_ticket_reads_carry_the_engine_key(monkeypatch):
+    # 엔진 조회 인증(NB_ENGINE_READ_AUTH)이 켜져 있어도 측정 도구가 티켓을 읽을 수 있어야 한다
+    seen = []
+    monkeypatch.setenv("NB_ENGINE_KEY", "ek-measure")
+    measure._engine_key.cache_clear()
+    monkeypatch.setattr(measure, "_engine_call",
+                        lambda base, method, path, key="", body=None: seen.append(key) or {"data": {"items": []}})
+    assert measure._tickets("http://127.0.0.1:1") == []
+    assert seen == ["ek-measure"]
+    measure._engine_key.cache_clear()

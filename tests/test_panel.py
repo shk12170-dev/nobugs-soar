@@ -125,3 +125,19 @@ def test_close_endpoint_needs_a_ticket_id(server):
     base, _ = server
     status, _body = _post(base, "/api/close", {})
     assert status == 400
+
+
+def test_engine_client_sends_the_key_on_reads(monkeypatch):
+    # 엔진이 조회 인증(NB_ENGINE_READ_AUTH)을 켜도 제어판이 티켓을 읽을 수 있어야 한다
+    seen: list[dict] = []
+
+    def fake_urlopen(req, timeout=None):
+        seen.append(dict(req.header_items()))
+        raise urllib.error.URLError("offline")
+
+    monkeypatch.setattr(panel.urllib.request, "urlopen", fake_urlopen)
+    assert panel.EngineClient("http://127.0.0.1:1", "ek").tickets() == []
+    assert seen and seen[0].get("X-engine-key") == "ek"
+    seen.clear()
+    panel.EngineClient("http://127.0.0.1:1", "").tickets()
+    assert "X-engine-key" not in seen[0]
