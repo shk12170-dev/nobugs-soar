@@ -55,7 +55,9 @@ def create_public_app(settings: Settings | None = None, state: AppState | None =
                               path=path, method=request.method)
             if response.status_code == 404:
                 state.events.emit("web.not_found", outcome="denied", status=404, src_ip=ip, path=path)
-
+            if path.startswith("/api/v1/admin") and response.status_code in (401, 403):
+                state.events.emit("admin.auth_failed", outcome="denied", status=response.status_code,
+                                  src_ip=ip, path=path)
         await run_in_threadpool(record)
         response.headers.update(SECURITY_HEADERS)
         return response

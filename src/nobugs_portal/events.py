@@ -22,6 +22,7 @@ RULES = {
     "web.not_found": "web-scan",
     "web.request": "request-observed",
     "web.file_access": "file-access",
+    "admin.auth_failed": "admin-auth-fail",
 }
 
 
