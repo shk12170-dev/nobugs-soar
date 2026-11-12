@@ -57,20 +57,21 @@
 - Active Response는 쓰지 않는다 — 탐지만 매니저로 보내고 복구는 이 저장소의 설계(Graylog 집계 → 엔진 웹훅 → 포털 대응 API)로 한다.
 - **완료 조건:** 변조 → 방문자 접근 → S7 이벤트 → 복구 → 효과 확인 — 2026-11-10 실제 서버로 확인(아래 PROVENANCE).
 
-### M7 — 측정·배포·문서 (진행 중)
+### M7 — 측정·배포·문서 (완료, 2026-11-12)
 - 케이스별 N=5 측정 자동화(회차마다 계정·출발지 분리) ✅ `src/nobugs_tools/measure.py` — 결과 표는
   [docs/MEASUREMENTS.md](MEASUREMENTS.md). 전체 6케이스(S1·S4·S7·S8·S10·S12)를 전체 스택(Wazuh 포함)으로
-  N=5씩 돌려 30회 중 29회 확인(아래 PROVENANCE). S7 5회차 1건은 기준본 파일을 돌려 쓰다 재알림 묵음
-  기간(10분)에 걸린 측정 설계의 한계였고, 실제로는 묵음 기간이 끝나자 정확히 복구까지 끝났다(MEASUREMENTS.md).
+  N=5씩 돌려 30회 모두 확인(아래 PROVENANCE). 11-10에는 S7 5회차 1건이 기준본 파일을 돌려 쓰다 재알림 묵음
+  기간(10분)에 걸려 29/30이었고, 측정 도구 보완(`--s7-wait-grace`) 뒤 11-12에 S7을 다시 재 5/5(MEASUREMENTS.md).
 - `setup` 스크립트 + `docker compose up -d`로 **처음부터 재현**, 시작 시 상태 대조 ✅
   `scripts/setup.ps1`(venv·프론트 빌드) + `src/nobugs_tools/setup.py`(.env·docker·기준본·시연 계정·Graylog
   설정·상태 대조). 실제로 돌려 확인(아래 PROVENANCE). 포털·대응 API·엔진은 여러 터미널에서 보며 시연해야 해서
   이 스크립트가 직접 띄우지는 않고, 끝에 다음 명령을 안내한다.
 - README 검증 표(확인/부분/미확인 구분) ✅ — 케이스별·인프라별 두 표, 모두 위 실측·PROVENANCE 근거를 그대로 연결
 - 아키텍처 그림(README 구성도, docs/ARCHITECTURE.md) ✅, 회고 초안(docs/RETROSPECTIVE.md) ✅, 스크린샷(docs/screenshots/) ✅, 이력서용 경력 기술서(docs/RESUME-PROJECT.md) ✅
-- **완료 조건 중 일부 확인(2026-11-11):** 새 클론(Python 3.14)에서 `pip install -e ".[dev]"` 뒤 `pytest` 전체가
-  통과하는 것까지는 확인했다(파이썬 쪽 재현). **미확인:** 새 클론에서 `scripts\setup.ps1`로 docker 스택까지
-  처음부터 올리는 전체 경로, Python 3.12 실행(CI 행렬에 추가했으나 이 PC에는 3.14만 있다).
+- **완료 조건 확인(2026-11-12):** GitHub에서 새로 받은 폴더에서 `scripts\setup.ps1 -Live`로 새 docker 볼륨까지
+  처음부터 올리고(Graylog 처음 기동·정의 6개 생성), 그 폴더만으로 띄운 포털·대응 API·엔진에서 S8 한 사이클을
+  확인했다(아래 PROVENANCE). 2026-11-11에는 새 클론(Python 3.14)의 `pytest` 전체 통과를 확인했다.
+  Python 3.12는 CI 행렬로만 확인한다(이 PC에는 3.14만 있다).
 - **완료 조건:** 깨끗한 폴더에서 문서만 보고 설치·시연 성공, 루트 테스트 전부 통과
 
 ## 의존 관계와 위험

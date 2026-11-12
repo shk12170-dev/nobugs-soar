@@ -33,7 +33,7 @@ AI 코딩 도구(Claude Code)를 보조로 썼고, 설계 결정과 검증은 �
 
 ## 상태
 
-**M6 완료, M7(측정·배포·문서) 진행 중 — S1·S4·S7·S8·S10·S12 여섯 케이스가 탐지부터 자동(또는 사람) 원복까지 자동으로 돕니다.** 파이썬 테스트 367건(2026-11-12 이 PC의 venv에서 `pytest` 통과 확인. 새 venv에서 `pip install -e ".[dev]" -c constraints.txt`부터 다시 확인한 것은 2026-11-11, 349건 시점), 프론트 단위 23건, 브라우저 E2E 7건이 통과합니다.
+**M7(측정·배포·문서)까지 완료 — S1·S4·S7·S8·S10·S12 여섯 케이스가 탐지부터 자동(또는 사람) 원복까지 자동으로 돕니다.** 파이썬 테스트 369건(2026-11-12 이 PC의 venv에서 `pytest` 통과 확인. 같은 날 GitHub에서 새로 받은 폴더에서 `setup.ps1`로 venv부터 설치하는 경로도 확인), 프론트 단위 23건, 브라우저 E2E 7건이 통과합니다.
 
 실제 시험(2026-11-10, Graylog·포털·대응 엔진·경계 시뮬레이터를 실제로 띄워 확인):
 - **S1**: 공격 후 10초 만에 차단·효과 확인, TTL 30초 뒤 자동 원복, 같은 IP의 티켓 2개도 교착 없이 함께 원복.
@@ -46,7 +46,7 @@ AI 코딩 도구(Claude Code)를 보조로 썼고, 설계 결정과 검증은 �
 - **S7**(홈페이지 변조): 공격 스크립트로 포털이 실제로 서빙하는 파일(`web/dist`)을 직접 바꿔치고 방문자 접근을 재현 → 실제 Wazuh 에이전트가 실시간 FIM으로 변조를 감지 → bridge가 기준본과 다를 때만 `tamper-signal`을 Graylog로 전달 → 변조 신호 + 방문자 접근(2xx)이 같은 자산·파일에서 10분 안에 모이면 Graylog가 엔진 웹훅을 호출 → 엔진이 포털 대응 API로 파일을 기준본으로 복구하고 티켓이 `restored`로 바로 넘어감(복구 자체가 원복이라 자동 원복은 없음) → 사람이 `close`로 마무리. 기준본에 없는 새 파일이면 격리(`quarantine`)로 분기.
 - 시험 중 발견·수정한 버그 2건(상세: [docs/PROVENANCE.md](docs/PROVENANCE.md)): ① Graylog 필드 값 계산이 `src_ip`를 필수로 요구해 `tamper-signal`(src_ip 없음) 쪽에서 이벤트 생성 자체가 조용히 실패 → S7만 `require_values=false`로 완화. ② 엔진 웹훅 알림 본문에 `asset_id`/`file_key`가 전혀 담겨 있지 않아 엔진이 매번 "보호 대상 아님"으로 조용히 무시(Graylog는 2xx로 보고 성공 처리) → 본문에 두 필드 추가.
 
-M7 반복 측정 자동화(`python -m nobugs_tools.measure`)는 전체 스택(Wazuh 포함)으로 S1·S4·S7·S8·S10·S12 여섯 케이스를 각 N=5로 돌려 30회 중 29회 확인했습니다(S7 5회차 1건은 기준본 파일 4개를 돌려 쓰다 재알림 묵음 기간에 걸린 측정 설계의 한계였고, 실제 복구는 끝까지 됐습니다 — 결과는 [docs/MEASUREMENTS.md](docs/MEASUREMENTS.md)). 원클릭 설치(`scripts\setup.ps1`)도 `-WithWazuh`까지 포함해 실제로 여러 번 돌려 확인했습니다 — .env 생성, docker compose up, Graylog 준비 대기, S7 기준본 저장, Graylog 정의 설정, 상태 대조까지 한 번에 하고 끝에 포털·엔진을 띄우는 다음 명령을 안내합니다(시험 중 발견·수정한 결함은 [docs/PROVENANCE.md](docs/PROVENANCE.md)). 구성도는 아래 "구성", 회고 초안은 [docs/RETROSPECTIVE.md](docs/RETROSPECTIVE.md)에 있습니다. 단계별 계획은 [docs/PLAN.md](docs/PLAN.md), 구현할 동작의 기준은 [docs/BEHAVIOR-SPEC.md](docs/BEHAVIOR-SPEC.md)입니다.
+M7 반복 측정 자동화(`python -m nobugs_tools.measure`)는 전체 스택(Wazuh 포함)으로 S1·S4·S7·S8·S10·S12 여섯 케이스를 각 N=5로 돌려 **30회 모두 확인**했습니다. 2026-11-10 측정에서는 S7 5회차 1건이 기준본 파일 4개를 돌려 쓰다 재알림 묵음 기간에 걸려 미확인(29/30)이었고, 측정 도구를 보완한 뒤 2026-11-12에 S7만 다시 재 5/5를 확인했습니다(결과: [docs/MEASUREMENTS.md](docs/MEASUREMENTS.md)). 원클릭 설치(`scripts\setup.ps1`)도 `-WithWazuh`까지 포함해 실제로 여러 번 돌려 확인했습니다 — .env 생성, docker compose up, Graylog 준비 대기, S7 기준본 저장, Graylog 정의 설정, 상태 대조까지 한 번에 하고 끝에 포털·엔진을 띄우는 다음 명령을 안내합니다(시험 중 발견·수정한 결함은 [docs/PROVENANCE.md](docs/PROVENANCE.md)). 구성도는 아래 "구성", 회고 초안은 [docs/RETROSPECTIVE.md](docs/RETROSPECTIVE.md)에 있습니다. 단계별 계획은 [docs/PLAN.md](docs/PLAN.md), 구현할 동작의 기준은 [docs/BEHAVIOR-SPEC.md](docs/BEHAVIOR-SPEC.md)입니다.
 
 ## 검증 표
 
@@ -60,7 +60,7 @@ M7 반복 측정 자동화(`python -m nobugs_tools.measure`)는 전체 스택(Wa
 | --- | --- | --- | --- | --- | --- | --- |
 | S1 | 로그인 무차별 대입 | Graylog 집계(실패 9회↑/30분, username+src_ip) | IP 차단 | TTL 자동 | 5/5 | 확인 |
 | S4 | 로그인 실패 뒤 성공(계정 탈취 의심) | Graylog 집계(실패+성공 합 6회↑) | 계정 잠금 + 세션 전부 회수 | 자동 원복 없음 — 사람이 `confirm-recovery`로 확인 | 5/5 | 확인 |
-| S7 | 홈페이지 변조 | Wazuh FIM 실시간 감지 → `wazuh_bridge` → Graylog 집계(asset_id+file_key) | 기준본으로 복구(기준본에 없는 새 파일은 격리) | 복구 자체가 원복 — 사람이 `close`로 마무리 | 4/5(1건은 재알림 묵음 기간에 걸린 측정 설계의 한계, 실제 복구는 끝까지 됨) | 확인 |
+| S7 | 홈페이지 변조 | Wazuh FIM 실시간 감지 → `wazuh_bridge` → Graylog 집계(asset_id+file_key) | 기준본으로 복구(기준본에 없는 새 파일은 격리) | 복구 자체가 원복 — 사람이 `close`로 마무리 | 5/5(2026-11-12 재측정. 11-10에는 4/5 — 재알림 묵음 기간에 걸린 측정 설계의 한계) | 확인 |
 | S8 | 웹 스캔 뒤 로그인 시도 | Graylog 집계(스캔+실패 합 5회↑, src_ip) | IP 차단 | TTL 자동 | 5/5 | 확인 |
 | S10 | 스캔·로그인·경계 신호 연쇄(S8 승격) | Graylog 집계(세 종류 모두, src_ip) | IP 차단 + 경계 차단(시뮬레이터) | TTL 자동(경계 → 앱 순서) | 5/5 | 확인 |
 | S12 | 요청 폭주 | Graylog 집계(94건↑/분, src_ip) | 조건부 — 헬스체크로 서비스가 실제로 느려졌을 때만 | 해당 없음(무해하면 조치 자체를 안 함) | 5/5(5회 모두 "조치 없음"이 맞는 결과) | 확인 |
@@ -88,9 +88,11 @@ M7 반복 측정 자동화(`python -m nobugs_tools.measure`)는 전체 스택(Wa
 | --- | --- | --- |
 | 엔진 조회 API 인증 | 기본은 꺼짐: 같은 PC(`127.0.0.1`)에서는 티켓·알림 조회와 대시보드를 키 없이 읽는다 | `.env`에 `NB_ENGINE_READ_AUTH=true`를 넣으면 조회에도 `X-Engine-Key`를 요구한다(제어판·측정 도구는 키를 붙여 읽음, `/api/v1/health`만 열림). 이때 브라우저로 대시보드 `:5200`을 직접 열 수 없으니 제어판 `:5102`를 쓴다 |
 | Python 3.12 | CI 행렬로만 확인 | 개발 PC에는 3.14만 있다. 3.14에서는 새 클론으로 전체 테스트 통과를 확인했다 |
-| 새 클론 전체 설치 | 파이썬 쪽만 확인 | 새 클론에서 `setup.ps1`로 docker 스택까지 처음부터 올리는 경로는 아직 시험하지 않았다(지금 PC에는 이미 떠 있는 스택이 있어 포트가 겹친다) |
 | pfSense 차단 자동화 | 범위 밖 | 로그 수집(syslog → Graylog)은 확인했지만 엔진이 pfSense를 조작해 IP를 막는 연동은 아직 없다 |
-| S7 N=5 측정 | 4/5 | 기준본 파일 4개를 돌려 써 5회차가 재알림 묵음 기간(10분)에 걸린다. 측정 설계의 한계 |
+
+S7 N=5(2026-11-12 재측정 5/5)와 새 클론 전체 설치는 확인해 이 표에서 지웠습니다. 새 클론 전체 설치는 GitHub에서 새로 받은 폴더에서 `setup.ps1 -Live`가
+새 docker 볼륨(Graylog 처음 기동)까지 끝까지 돌고, 그 폴더만으로 띄운 서버에서 S8 한 사이클(21초에 차단·효과
+확인)이 됐습니다([docs/PROVENANCE.md](docs/PROVENANCE.md)).
 
 의존성 버전은 [constraints.txt](constraints.txt)로 고정합니다(새 클론에서 설치·테스트 통과를 확인한 조합). CI와
 `scripts\*.ps1`이 `-c constraints.txt`로 설치합니다. 버전을 올릴 때는 Dependabot PR이 CI를 통과하는지 봅니다.

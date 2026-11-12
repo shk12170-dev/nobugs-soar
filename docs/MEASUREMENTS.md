@@ -5,6 +5,27 @@
 회차와 같은 IP를 또 쓰지 않게 한다 — 같은 IP를 또 쓰면 포털의 로그인 횟수 제한(출발지당 5분에 20회)에 걸려
 실제로는 통과할 시도도 429로 막히는 문제를 실제로 겪었다(아래 "시험 중 발견" 참고).
 
+## 2026-11-12 — S7 재측정, N=5 (5/5)
+
+11-10 측정의 S7 5회차 미확인(아래)을 보완 측정 도구로 다시 쟀다. 포털·대응 API·엔진은 실행기
+(`python -m nobugs_tools.run`)로, Wazuh 매니저+에이전트와 `wazuh_bridge`를 실제로 띄우고
+`python -m nobugs_tools.measure --case S7 --rounds 5 --s7-wait-grace`로 측정했다. 에이전트는 Dependabot PR #4의
+기반 이미지(**Ubuntu 26.04.1**, Wazuh 4.9.0 에이전트)로 다시 빌드한 것이다 — 매니저에 `nobugs-portal`이 Active로
+붙고 실시간 FIM이 그대로 동작하는 것까지 이 측정으로 함께 확인했다.
+
+| 케이스 | 회차 | 묶음 키 | 상태 | 걸린 시간(s) | 결과 |
+| --- | --- | --- | --- | --- | --- |
+| S7 | 1 | nobugs-portal@assets/index-DSZvrULP.js | restored | 54.6 | 확인 |
+| S7 | 2 | nobugs-portal@assets/index-j3iMk5vD.css | restored | 28.2 | 확인 |
+| S7 | 3 | nobugs-portal@favicon.svg | restored | 32.2 | 확인 |
+| S7 | 4 | nobugs-portal@index.html | restored | 30.2 | 확인 |
+| S7 | 5 | nobugs-portal@assets/index-DSZvrULP.js | restored | 54.4 | 확인 |
+
+5회차는 1회차와 같은 파일이라 도구가 재알림 묵음(10분)이 끝날 때까지 기다린 뒤 쟀다(걸린 시간은 기다림을 뺀
+공격부터 복구 확인까지). 엔진은 복구가 끝난 1회차 티켓(`T-20261112-0002`)을 자동으로 닫고("원복 뒤 같은 대상에서
+새 탐지가 발생해 새 사건으로 처리") 새 티켓(`T-20261112-0006`)으로 복구했다. 측정 뒤 웹 루트 4개 파일이 모두
+기준본과 같은 것도 확인했다. 이 결과로 6케이스가 모두 N=5에서 5/5다(S1·S4·S8·S10·S12는 11-10, S7은 11-12).
+
 ## 2026-11-10 — 전체 6케이스(S1·S4·S7·S8·S10·S12), N=5
 
 전체 스택(mongodb·opensearch·graylog·wazuh-manager·wazuh-agent + 포털·대응 API·경계 시뮬레이터·엔진·
@@ -84,4 +105,5 @@ N=5 전체 케이스 측정은 전체 스택(Wazuh 포함)을 띄우는 다음 �
 
 위 S7 5회차 같은 경우를 측정 도구가 이제 직접 구분한다. 같은 실행에서 같은 기준본 파일을 재알림 묵음(10분) 안에 다시
 쓰게 되면 90초를 기다려 `timeout`으로 끝내지 않고 바로 `grace_skip`(미확인, 이유 표시)으로 넘긴다.
-`--s7-wait-grace`를 주면 묵음이 끝날 때까지 기다린 뒤 잰다. 이 보완 뒤 S7 N=5를 실제 Wazuh로 다시 재지는 않았다.
+`--s7-wait-grace`를 주면 묵음이 끝날 때까지 기다린 뒤 잰다. 이 보완으로 2026-11-12에 S7 N=5를 실제 Wazuh로 다시
+재 5/5를 확인했다(맨 위 표).

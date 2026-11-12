@@ -168,3 +168,13 @@ def test_step_docker_up_includes_wazuh_services_only_when_asked(monkeypatch):
 
     setup.step_docker_up(with_wazuh=False)
     assert "wazuh-manager" not in seen["cmd"]
+
+
+def test_status_report_follows_the_compose_project_name(monkeypatch):
+    seen = []
+    monkeypatch.setattr(setup, "_docker_status", lambda name: seen.append(name) or "running")
+    monkeypatch.setattr(setup, "_graylog_reachable", lambda url: True)
+    monkeypatch.delenv("COMPOSE_PROJECT_NAME", raising=False)
+    assert "nobugs-soc-graylog-1" in setup.status_report(False)["containers"]
+    monkeypatch.setenv("COMPOSE_PROJECT_NAME", "nobugs-clean")
+    assert "nobugs-clean-graylog-1" in setup.status_report(False)["containers"]

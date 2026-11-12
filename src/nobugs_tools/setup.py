@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import subprocess
 import sys
 import urllib.error
@@ -112,7 +113,10 @@ def _graylog_reachable(url: str) -> bool:
 def status_report(with_wazuh: bool) -> dict[str, str | bool]:
     """설치가 끝난 뒤 뭐가 떠 있는지 한눈에 보여준다("시작 시 상태 대조")."""
     env = graylog_tool.load_env()
-    containers = {f"nobugs-soc-{s}-1": _docker_status(f"nobugs-soc-{s}-1")
+    # 컨테이너 이름은 compose 프로젝트 이름을 따른다(COMPOSE_PROJECT_NAME이 compose 파일의 name보다 우선).
+    # 고정 이름으로 보면 다른 프로젝트 이름으로 올린 스택 대신 엉뚱한(멈춘) 컨테이너를 보고한다(새 클론 시험에서 겪음).
+    project = os.environ.get("COMPOSE_PROJECT_NAME") or "nobugs-soc"
+    containers = {f"{project}-{s}-1": _docker_status(f"{project}-{s}-1")
                  for s in (list(BASE_SERVICES) + (list(WAZUH_SERVICES) if with_wazuh else []))}
     return {
         "env_file": ENV_FILE.exists(),
