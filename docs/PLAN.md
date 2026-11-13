@@ -67,7 +67,7 @@
   설정·상태 대조). 실제로 돌려 확인(아래 PROVENANCE). 포털·대응 API·엔진은 여러 터미널에서 보며 시연해야 해서
   이 스크립트가 직접 띄우지는 않고, 끝에 다음 명령을 안내한다.
 - README 검증 표(확인/부분/미확인 구분) ✅ — 케이스별·인프라별 두 표, 모두 위 실측·PROVENANCE 근거를 그대로 연결
-- 아키텍처 그림(README 구성도, docs/ARCHITECTURE.md) ✅, 회고 초안(docs/RETROSPECTIVE.md) ✅, 스크린샷(docs/screenshots/) ✅, 이력서용 경력 기술서(docs/RESUME-PROJECT.md) ✅
+- 아키텍처 그림(README 구성도, docs/ARCHITECTURE.md) ✅, 회고(docs/RETROSPECTIVE.md, 느낀 점 포함) ✅, 스크린샷(docs/screenshots/) ✅, 이력서용 경력 기술서(docs/RESUME-PROJECT.md) ✅
 - **완료 조건 확인(2026-11-12):** GitHub에서 새로 받은 폴더에서 `scripts\setup.ps1 -Live`로 새 docker 볼륨까지
   처음부터 올리고(Graylog 처음 기동·정의 6개 생성), 그 폴더만으로 띄운 포털·대응 API·엔진에서 S8 한 사이클을
   확인했다(아래 PROVENANCE). 2026-11-11에는 새 클론(Python 3.14)의 `pytest` 전체 통과를 확인했다.
