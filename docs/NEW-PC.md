@@ -43,6 +43,9 @@
 
 ## 1. 프로그램 설치(처음 한 번)
 
+> **Windows만 설치된 빈 PC라면** 이 절 대신 [WINDOWS-SETUP.md](WINDOWS-SETUP.md)를 먼저 끝까지 한다(가상화·WSL2·
+> Docker·Git·Python·Node·Claude까지 개발 PC와 같은 버전 표 포함). 끝나면 2절로 온다.
+
 필요한 것: **RAM 16GB 이상**(Graylog·OpenSearch·Wazuh가 무겁다), 디스크 여유 20GB 이상.
 
 PowerShell을 열고 아래를 하나씩 실행한다. 이미 설치된 것은 건너뛴다.

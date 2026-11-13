@@ -20,6 +20,7 @@ AI 코딩 도구(Claude Code)를 보조로 썼고, 설계 결정과 검증은 �
 
 | 보고 싶은 것 | 문서 |
 | --- | --- |
+| **Windows만 있는 빈 PC를 개발 PC와 같은 환경으로 만들기** | [docs/WINDOWS-SETUP.md](docs/WINDOWS-SETUP.md) |
 | **다른 PC에서 처음부터 받아 실행하고 이어서 작업하기** | [docs/NEW-PC.md](docs/NEW-PC.md) |
 | **직접 실행하고 새 케이스(S6 등) 구현해 보기 — 단계별 실습** | [docs/MANUAL.md](docs/MANUAL.md) |
 | 전체 구조·포트·대응 6단계·로그 수집 경로 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) |
