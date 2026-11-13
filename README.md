@@ -130,7 +130,10 @@ flowchart LR
 일반 포털과 **다른 포트**로 분리돼 있어 외부에서 일반 포털로는 닿지 않습니다.
 
 구성 요소·포트·6단계 흐름·로그 수집 경로는 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)에 자세히 있습니다.
-실제 화면(제어판·엔진 티켓·포털·Graylog filterlog)은 [docs/screenshots/](docs/screenshots/README.md)에 있습니다.
+실제 화면(제어판·엔진 티켓·포털·Graylog filterlog)은 [docs/screenshots/](docs/screenshots/README.md)에 있습니다. 아래는 S8 한
+사이클(공격 → 탐지 → 차단·확인 → 자동 원복)을 실제 스택에서 녹화한 것입니다(장면마다 자막, 시연용 TTL 30초).
+
+![S8 한 사이클: 공격부터 자동 원복까지](docs/screenshots/05-demo-s8-cycle.gif)
 
 ## 처음부터 한 번에(원클릭 설치)
 

@@ -169,7 +169,7 @@ time{{color:#777;font-size:12px}}
 <h1>실습 제어판 — 공격 → 탐지 → 조치 → 반영 확인 → 효과 확인 → 원복</h1>
 <div class=links>{link_row}</div>
 <div class=bar>{buttons}
-<span style="font-size:13px;color:#777">공격을 누르면 재현 후 5초 안에 티켓이 올라온다</span></div>
+<span style="font-size:13px;color:#777">공격을 누르면 Graylog가 탐지한 뒤(보통 1분 안) 티켓이 올라온다</span></div>
 <div id=msg></div>
 <div id=tickets><p style="color:#888">불러오는 중…</p></div>
 <script>
