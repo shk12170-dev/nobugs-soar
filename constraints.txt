@@ -3,7 +3,7 @@ annotated-types==0.8.0
 anyio==4.16.0
 click==8.5.1
 colorama==0.4.6
-fastapi==0.162.4
+fastapi==0.163.1
 h11==0.16.0
 httpcore2==2.16.0
 httpx2==2.16.0
@@ -16,7 +16,7 @@ pydantic==2.14.3
 pydantic_core==2.50.4
 Pygments==2.21.0
 pytest==9.2.0
-ruff==0.17.4
+ruff==0.17.5
 SQLAlchemy==2.1.8
 starlette==1.10.0
 truststore==0.10.5
