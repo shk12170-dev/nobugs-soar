@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>김상혁 ALEPH 포트폴리오</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: 한 장짜리 문서형 — 좌측 좁은 라벨 열 + 우측 본문, 위쪽에 이름·핵심 수치 */
+:root {
+  --bg: #f3f5f6;
+  --paper: #ffffff;
+  --fg: #14232b;
+  --muted: #5a6b74;
+  --line: #d9e0e4;
+  --accent: #0b7a75;
+  --accent-soft: #e0f1ef;
+  --warn: #a8531a;
+  --warn-soft: #fbece0;
+  --font-body: "Noto Sans KR", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0c1519; --paper: #121e24; --fg: #e6eef1; --muted: #93a6ae; --line: #25363e;
+    --accent: #4fd1c5; --accent-soft: #14312f; --warn: #f0a46b; --warn-soft: #33241a;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0c1519; --paper: #121e24; --fg: #e6eef1; --muted: #93a6ae; --line: #25363e;
+  --accent: #4fd1c5; --accent-soft: #14312f; --warn: #f0a46b; --warn-soft: #33241a;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg); font-family: var(--font-body);
+  font-size: 15px; line-height: 1.7; word-break: keep-all;
+  padding-block: 32px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.page { max-width: 880px; margin: 0 auto; background: var(--paper); border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+header { padding: 36px 40px 28px; border-bottom: 1px solid var(--line); }
+.eyebrow { font-family: var(--font-mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); margin: 0 0 10px; }
+h1 { font-size: 34px; line-height: 1.25; font-weight: 900; margin: 0 0 6px; text-wrap: balance; }
+.lead { color: var(--muted); margin: 0; max-width: 60ch; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 18px 0 0; padding: 0; list-style: none; }
+.chips li { font-size: 12px; font-weight: 500; padding: 2px 10px; border: 1px solid var(--line); border-radius: 99px; color: var(--muted); }
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); border-bottom: 1px solid var(--line); }
+.stat { padding: 20px 40px; border-right: 1px solid var(--line); min-width: 0; }
+.stat:last-child { border-right: 0; }
+.stat b { display: block; font-family: var(--font-mono); font-size: 30px; line-height: 1.2; color: var(--accent); }
+.stat span { font-size: 13px; color: var(--muted); display: block; margin-top: 2px; }
+section { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 8px 28px; padding: 26px 40px; border-bottom: 1px solid var(--line); }
+section:last-of-type { border-bottom: 0; }
+h2 { font-size: 13px; font-weight: 700; letter-spacing: .04em; color: var(--muted); margin: 4px 0 0; text-transform: uppercase; }
+.body > *:first-child { margin-top: 0; }
+.body p { margin: 0 0 10px; }
+.body h3 { font-size: 16px; margin: 0 0 4px; font-weight: 700; }
+.body ul { margin: 6px 0 0; padding-left: 18px; }
+.body li { margin-bottom: 4px; }
+.flow { display: flex; flex-wrap: wrap; gap: 6px; align-items: stretch; margin: 12px 0 14px; padding: 0; list-style: none; }
+.flow li { flex: 1 1 110px; min-width: 0; background: var(--accent-soft); border-radius: 4px; padding: 8px 10px; font-size: 13px; line-height: 1.45; margin: 0; }
+.flow li b { display: block; font-size: 12px; color: var(--accent); font-family: var(--font-mono); }
+.compare { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 10px 0; }
+.compare > div { padding: 12px 14px; border-radius: 4px; font-size: 14px; min-width: 0; }
+.compare .bad { background: var(--warn-soft); }
+.compare .good { background: var(--accent-soft); }
+.compare strong { display: block; margin-bottom: 2px; }
+.bad strong { color: var(--warn); }
+.good strong { color: var(--accent); }
+.note { font-size: 13px; color: var(--muted); }
+footer { padding: 16px 40px 22px; font-size: 12px; color: var(--muted); border-top: 1px solid var(--line); }
+@media (max-width: 680px) {
+  header, section, footer { padding-left: 20px; padding-right: 20px; }
+  section { grid-template-columns: 1fr; gap: 6px; }
+  .stats { grid-template-columns: 1fr; }
+  .stat { border-right: 0; border-bottom: 1px solid var(--line); padding: 14px 20px; }
+  .stat:last-child { border-bottom: 0; }
+  .compare { grid-template-columns: 1fr; }
+  h1 { font-size: 27px; }
+}
+
+table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 10px 0 12px; }
+th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 12px; color: var(--muted); font-weight: 700; }
+td b { font-family: var(--font-mono); white-space: nowrap; }
+.ok { color: var(--accent); font-weight: 700; white-space: nowrap; }
+.part { font-size: 12px; font-family: var(--font-mono); color: var(--accent); letter-spacing: .06em; margin: 0 0 4px; display: block; }
+.scroll { overflow-x: auto; }
+a { color: var(--accent); }
+@media (max-width: 680px) { .hide-sm { display: none; } }
+</style>
+</head>
+<body>
+
+<main class="page">
+  <header>
+    <p class="eyebrow">Team NoBugs Capstone → 1인 전체 재구성 · 2026.10–11</p>
+    <h1>김상혁<br>보안 관제 · 자동 대응 프로젝트 ALEPH</h1>
+    <p class="lead">가상 공공기관 해담시청의 민원포털을 공격하면 탐지하고, 자동으로 막고, 정상 사용자는 계속 쓰는지 확인한 뒤 원래대로 되돌리는 시스템입니다. 팀 프로젝트에서는 C 자리(Wazuh·보안 대시보드·S8 시연)를 맡았고, 종료 뒤에는 <strong>팀 코드를 보지 않고 명세만으로 전체를 혼자, PC 한 대에서 새로 설계·구현하고 6개 케이스를 케이스당 5회씩 측정</strong>했습니다.</p>
+    <ul class="chips">
+      <li>Wazuh 4.9</li><li>Graylog 6.1</li><li>n8n</li><li>pfSense 로그 수집</li><li>Docker</li><li>Python · FastAPI</li><li>React</li><li>pytest · Playwright</li>
+    </ul>
+  </header>
+
+  <div class="stats">
+    <div class="stat"><b>4대 → 1대</b><span>팀이 PC 4대에 나눠 만든 구성을 PC 한 대에서 새로 구현</span></div>
+    <div class="stat"><b>6케이스 × 5회</b><span>S1·S4·S7·S8·S10·S12를 케이스마다 5회 반복 측정해 모두 확인(S7은 재측정 포함)</span></div>
+    <div class="stat"><b>369건</b><span>자동 테스트 통과, 프론트 단위 23건과 브라우저 E2E 7건, CI 성공</span></div>
+  </div>
+
+  <section>
+    <h2>한눈에 보기</h2>
+    <div class="body">
+      <div class="scroll"><table>
+        <tr><th>단계</th><th>기간</th><th>무엇을</th></tr>
+        <tr><td><b>① 팀 프로젝트</b></td><td>10/19–11/06</td><td>4인 팀의 C 자리. Wazuh, 보안 대시보드, 최종 발표 S8 시연</td></tr>
+        <tr><td><b>② 1인 재구성</b></td><td>11/09–11/13</td><td>팀 코드를 보지 않고 명세만으로 포털·대응 엔진·탐지 규칙을 PC 한 대에 새로 구현, 6케이스 5회씩 측정</td></tr>
+      </table></div>
+      <p class="note">팀에서 한 일과 혼자 다시 한 일을 섞지 않았습니다. ②의 수치는 모두 개인 PC에서 직접 잰 값입니다.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>① 팀 프로젝트</h2>
+    <div class="body">
+      <h3>경보·기록 PC(C)를 맡았습니다</h3>
+      <ul>
+        <li><strong>Wazuh</strong>: 포털 서버의 경보를 Graylog로 전달. 1,400바이트가 넘는 UDP 경보가 사라지는 문제를 TCP 중계로 해결</li>
+        <li><strong>보안 대시보드</strong>: 티켓 저장소·API·사건 목록과 상세 화면 구현. 조치 성공과 실제 차단 효과를 따로 표시</li>
+        <li><strong>S8 시연</strong>: 15분 안에 같은 출발지에서 404와 401이 겹치면 포털 차단. 11/03 성공 회차에서 마지막 입력부터 차단까지 <strong>37.9초</strong>, 공격자 403·정상 사용자 200 확인</li>
+      </ul>
+      <div class="compare">
+        <div class="bad"><strong>첫 시도: 연결 실패</strong>탐지는 됐지만 n8n 웹훅 주소가 등록되지 않아 차단과 티켓으로 이어지지 않았습니다.</div>
+        <div class="good"><strong>수정 후: 끝까지 확인</strong>연결을 다시 등록하고 차단·정상 접근·해제까지 확인했습니다. 첫 실패도 숨기지 않고 1/2로 집계했습니다.</div>
+      </div>
+      <p class="note">팀에서 S7(홈페이지 변조)은 수동 복구 시험까지만 했고, 차단 해제는 사람이 했습니다. 이 빈칸이 개인 재구성의 출발점이 됐습니다.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>② 1인 재구성</h2>
+    <div class="body">
+      <span class="part">nobugs-soar</span>
+      <h3>대응 로직을 직접 만든 Python 엔진으로 구현했습니다</h3>
+      <p>포털(FastAPI·React), 대응 엔진(티켓 상태 기계, 같은 요청 중복 처리 방지, 효과 확인, 자동 원복), 탐지 규칙과 복구 로직을 명세만 보고 새로 작성했습니다. 팀은 대응을 n8n 워크플로로 조립했지만, 이 저장소는 엔진이 판단하고 n8n은 Graylog 탐지를 엔진으로 전달하는 자리에 둡니다(S1). Graylog·Wazuh·n8n은 Docker로 띄웁니다.</p>
+      <div class="scroll"><table>
+        <tr><th>케이스</th><th>공격</th><th>자동 대응</th><th>실측 (5회)</th></tr>
+        <tr><td><b>S1</b></td><td>로그인 무차별 대입</td><td>IP 차단, 시간 지나면 자동 원복</td><td class="ok">5/5</td></tr>
+        <tr><td><b>S4</b></td><td>로그인 실패 뒤 성공</td><td>계정 잠금 + 세션 회수, 복구는 사람이 확인</td><td class="ok">5/5</td></tr>
+        <tr><td><b>S7</b></td><td>홈페이지 변조</td><td>기준본으로 복구, 새 파일은 격리</td><td class="ok">5/5 (11/12 재측정)</td></tr>
+        <tr><td><b>S8</b></td><td>스캔 뒤 로그인 시도</td><td>IP 차단, 자동 원복</td><td class="ok">5/5</td></tr>
+        <tr><td><b>S10</b></td><td>스캔·로그인·경계 연쇄</td><td>IP 차단 + 경계 차단(시뮬레이터)</td><td class="ok">5/5</td></tr>
+        <tr><td><b>S12</b></td><td>요청 폭주</td><td>서비스가 느려질 때만 조치, 무해하면 조치 없음</td><td class="ok">5/5 (조치 없음이 정답)</td></tr>
+      </table></div>
+      <p>11/10 실제 시험에서 S1은 공격 10초 만에 차단과 효과 확인이 끝났고, 30초 뒤 자동 원복됐습니다. S7은 11/10 측정에서 5회 중 1회가 재알림 묵음 기간에 걸려 미확인이었고, 측정 도구를 고쳐 11/12에 다시 5/5로 확인했습니다. 실측값은 모두 개인 PC에서 직접 잰 것이며 팀 PC의 값과 섞지 않았습니다.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>문제 해결</h2>
+    <div class="body">
+      <ul>
+        <li><strong>S8·S10이 같은 트래픽에 동시에 발동</strong>: 같은 IP 차단이 중복 기록되는 경쟁 조건을 찾아, 엔진의 판단·조치 구간을 직렬화해 고쳤습니다.</li>
+        <li><strong>S7 이벤트가 조용히 실패</strong>: Graylog가 <code>src_ip</code>를 필수로 요구해 변조 신호의 이벤트 생성이 실패했고, 웹훅 본문에 <code>asset_id</code>·<code>file_key</code>가 없어 엔진이 매번 "보호 대상 아님"으로 무시했습니다. 두 가지를 각각 고쳤습니다.</li>
+        <li><strong>반복 측정 중 429 응답</strong>: 같은 IP를 다시 쓰면 포털의 로그인 횟수 제한에 걸려 정상 시도까지 막혔습니다. 회차마다 계정·출발지를 바꾸도록 측정 도구를 고쳤습니다.</li>
+        <li><strong>새 환경 설치 검증</strong>: GitHub에서 새로 받은 폴더에서 설치 스크립트로 처음부터 끝까지 설치해 보고, 막힌 곳을 문서와 스크립트에 반영했습니다.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <h2>한계와 다음 과제</h2>
+    <div class="body">
+      <ul>
+        <li>pfSense는 방화벽 로그를 Graylog로 수집하는 데까지만 확인했고, 엔진이 pfSense를 조작해 IP를 막는 연동은 범위 밖입니다.</li>
+        <li>S10의 경계 차단은 상태만 관리하는 시뮬레이터이며 실제 패킷 차단은 아닙니다.</li>
+        <li>S4와 S7의 마무리는 사람이 확인합니다. 다른 팀과의 공방전은 하지 않았습니다.</li>
+        <li>Python 3.12는 CI로만 확인했고 개발 PC에서는 3.14로 확인했습니다.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <h2>저장소</h2>
+    <div class="body">
+      <ul>
+        <li>1인 재구성: <a href="https://github.com/shk12170-dev/nobugs-soar">github.com/shk12170-dev/nobugs-soar</a></li>
+      </ul>
+      <p class="note">AI 코딩 도구(Claude Code)를 보조로 썼고, 설계 결정과 검증은 직접 했습니다. 팀 코드는 보지 않고 명세만으로 새로 작성했으며, 작성 규칙과 모듈별 출처는 저장소의 CLEANROOM.md와 PROVENANCE.md에 적었습니다.</p>
+    </div>
+  </section>
+
+  <footer>1조 NoBugs · 해담시청 민원포털 통합 보안 관제와 자동 대응(ALEPH) · 팀 최종 발표 2026.11.06 · 개인 재구성 2026.11 · 가상 기관과 시험용 계정으로 수행</footer>
+</main>
+</body>
+</html>
