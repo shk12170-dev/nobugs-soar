@@ -7,9 +7,9 @@
 | 항목 | 내용 |
 | --- | --- |
 | 팀 원본 저장소 | [NoBugs-Aleph/aleph-soar-capstone](https://github.com/NoBugs-Aleph/aleph-soar-capstone) (관제·탐지·대응), [haedam-portal-backend](https://github.com/NoBugs-Aleph/haedam-portal-backend) · [haedam-portal-frontend](https://github.com/NoBugs-Aleph/haedam-portal-frontend) (민원 포털) |
-| 팀 | NoBugs 1조 4인(2026.10~11) — 김명준, 김상혁(본인), 김대훈, 반소람 |
+| 팀 | NoBugs 1조 4인(2026.10~11) — 팀원 3명과 본인 |
 | 팀에서 본인 역할 | C 자리 — 티켓 저장소(상태 기계·멱등 처리)와 S7(홈페이지 변조) 복구 담당 |
-| 이 저장소 | 팀이 PC 4대에 나눠 만든 것을 **혼자, PC 한 대에서, 처음부터 새로 설계·구현**한 것입니다. 포털·대응 엔진·탐지 규칙·복구 로직은 팀 코드를 보고 옮긴 것이 아니라 명세만 보고 새로 작성했습니다(작성 규칙 [docs/CLEANROOM.md](docs/CLEANROOM.md), 모듈별 출처 [docs/PROVENANCE.md](docs/PROVENANCE.md)). |
+| 이 저장소 | 팀이 PC 4대에 나눠 만든 것을 **혼자, PC 한 대에서, 처음부터 새로 설계·구현**한 것입니다. 포털·대응 엔진·탐지 규칙·복구 로직은 팀 코드를 복사한 것이 아니라 팀 명세를 바탕으로 새로 작성했습니다(작성 규칙 [docs/CLEANROOM.md](docs/CLEANROOM.md), 모듈별 출처 [docs/PROVENANCE.md](docs/PROVENANCE.md)). |
 | 팀과 다른 점 | 팀은 대응을 n8n 워크플로로 조립했지만, 이 저장소는 대응 로직을 **직접 만든 Python 대응 엔진**(티켓 상태 기계·멱등·효과 확인·자동 원복)으로 구현했고, n8n은 Graylog 탐지를 엔진으로 중계하는 자리에 둡니다(S1). |
 
 AI 코딩 도구(Claude Code)를 보조로 썼고, 설계 결정과 검증은 본인이 했습니다. 실측값은 모두 이 PC에서 직접 잰 것이며 팀 PC 4대에서 잰 값과 섞지 않았습니다. 비밀값은 `.env`에만 두고 저장소에는 [.env.example](.env.example)만 둡니다.
@@ -30,7 +30,7 @@ AI 코딩 도구(Claude Code)를 보조로 썼고, 설계 결정과 검증은 �
 | 모듈별 출처·시험 중 발견·수정한 결함 | [docs/PROVENANCE.md](docs/PROVENANCE.md) |
 | 회고(무엇을·잘된 점·겪은 문제·느낀 점) | [docs/RETROSPECTIVE.md](docs/RETROSPECTIVE.md) |
 | 이력서·포트폴리오용 프로젝트 요약 | [docs/RESUME-PROJECT.md](docs/RESUME-PROJECT.md) |
-| 팀 코드를 안 보고 새로 쓴 기준(클린룸) | [docs/CLEANROOM.md](docs/CLEANROOM.md) |
+| 팀 코드를 복사하지 않고 새로 쓴 기준(클린룸) | [docs/CLEANROOM.md](docs/CLEANROOM.md) |
 | 단계별 계획 · 구현 기준(동작 명세) | [docs/PLAN.md](docs/PLAN.md) · [docs/BEHAVIOR-SPEC.md](docs/BEHAVIOR-SPEC.md) |
 
 ## 상태

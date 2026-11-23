@@ -100,7 +100,7 @@ a { color: var(--accent); }
   <header>
     <p class="eyebrow">Team NoBugs Capstone → 1인 전체 재구성 · 2026.10–11</p>
     <h1>김상혁<br>보안 관제 · 자동 대응 프로젝트 ALEPH</h1>
-    <p class="lead">가상 공공기관 해담시청의 민원포털을 공격하면 탐지하고, 자동으로 막고, 정상 사용자는 계속 쓰는지 확인한 뒤 원래대로 되돌리는 시스템입니다. 팀 프로젝트에서는 C 자리(Wazuh·보안 대시보드·S8 시연)를 맡았고, 종료 뒤에는 <strong>팀 코드를 보지 않고 명세만으로 전체를 혼자, PC 한 대에서 새로 설계·구현하고 6개 케이스를 케이스당 5회씩 측정</strong>했습니다.</p>
+    <p class="lead">가상 공공기관 해담시청의 민원포털을 공격하면 탐지하고, 자동으로 막고, 정상 사용자는 계속 쓰는지 확인한 뒤 원래대로 되돌리는 시스템입니다. 팀 프로젝트에서는 관제(Wazuh·보안 대시보드·티켓 저장소)를 맡아 시나리오를 구현하고 시연했고, 종료 뒤에는 <strong>팀 코드를 복사하지 않고 팀 명세를 바탕으로 전체를 혼자, PC 한 대에서 새로 설계·구현하고 6개 케이스를 케이스당 5회씩 측정</strong>했습니다.</p>
     <ul class="chips">
       <li>Wazuh 4.9</li><li>Graylog 6.1</li><li>n8n</li><li>pfSense 로그 수집</li><li>Docker</li><li>Python · FastAPI</li><li>React</li><li>pytest · Playwright</li>
     </ul>
@@ -117,8 +117,8 @@ a { color: var(--accent); }
     <div class="body">
       <div class="scroll"><table>
         <tr><th>단계</th><th>기간</th><th>무엇을</th></tr>
-        <tr><td><b>① 팀 프로젝트</b></td><td>10/19–11/06</td><td>4인 팀의 C 자리. Wazuh, 보안 대시보드, 최종 발표 S8 시연</td></tr>
-        <tr><td><b>② 1인 재구성</b></td><td>11/09–11/13</td><td>팀 코드를 보지 않고 명세만으로 포털·대응 엔진·탐지 규칙을 PC 한 대에 새로 구현, 6케이스 5회씩 측정</td></tr>
+        <tr><td><b>① 팀 프로젝트</b></td><td>10/19–11/06</td><td>4인 팀의 관제 담당. Wazuh, 보안 대시보드, 최종 발표 시연(스캔 뒤 로그인 시나리오)</td></tr>
+        <tr><td><b>② 1인 재구성</b></td><td>11/09–11/13</td><td>팀 코드를 복사하지 않고 팀 명세를 바탕으로 포털·대응 엔진·탐지 규칙을 PC 한 대에 새로 구현, 6케이스 5회씩 측정</td></tr>
       </table></div>
       <p class="note">팀에서 한 일과 혼자 다시 한 일을 섞지 않았습니다. ②의 수치는 모두 개인 PC에서 직접 잰 값입니다.</p>
     </div>
@@ -127,11 +127,11 @@ a { color: var(--accent); }
   <section>
     <h2>① 팀 프로젝트</h2>
     <div class="body">
-      <h3>경보·기록 PC(C)를 맡았습니다</h3>
+      <h3>경보·기록 담당을 맡았습니다</h3>
       <ul>
         <li><strong>Wazuh</strong>: 포털 서버의 경보를 Graylog로 전달. 1,400바이트가 넘는 UDP 경보가 사라지는 문제를 TCP 중계로 해결</li>
         <li><strong>보안 대시보드</strong>: 티켓 저장소·API·사건 목록과 상세 화면 구현. 조치 성공과 실제 차단 효과를 따로 표시</li>
-        <li><strong>S8 시연</strong>: 15분 안에 같은 출발지에서 404와 401이 겹치면 포털 차단. 11/03 성공 회차에서 마지막 입력부터 차단까지 <strong>37.9초</strong>, 공격자 403·정상 사용자 200 확인</li>
+        <li><strong>스캔 뒤 로그인 시나리오(S8) 시연</strong>: 15분 안에 같은 출발지에서 404와 401이 겹치면 포털 차단. 11/03 성공 회차에서 마지막 입력부터 차단까지 <strong>37.9초</strong>, 공격자 403·정상 사용자 200 확인</li>
       </ul>
       <div class="compare">
         <div class="bad"><strong>첫 시도: 연결 실패</strong>탐지는 됐지만 n8n 웹훅 주소가 등록되지 않아 차단과 티켓으로 이어지지 않았습니다.</div>
@@ -164,7 +164,7 @@ a { color: var(--accent); }
     <h2>문제 해결</h2>
     <div class="body">
       <ul>
-        <li><strong>S8·S10이 같은 트래픽에 동시에 발동</strong>: 같은 IP 차단이 중복 기록되는 경쟁 조건을 찾아, 엔진의 판단·조치 구간을 직렬화해 고쳤습니다.</li>
+        <li><strong>S8·S10이 같은 트래픽에 동시에 발동</strong>: 같은 IP 차단이 동시에 두 번 기록되는 충돌을 찾아, 엔진의 판단·조치 구간을 직렬화해 고쳤습니다.</li>
         <li><strong>S7 이벤트가 조용히 실패</strong>: Graylog가 <code>src_ip</code>를 필수로 요구해 변조 신호의 이벤트 생성이 실패했고, 웹훅 본문에 <code>asset_id</code>·<code>file_key</code>가 없어 엔진이 매번 "보호 대상 아님"으로 무시했습니다. 두 가지를 각각 고쳤습니다.</li>
         <li><strong>반복 측정 중 429 응답</strong>: 같은 IP를 다시 쓰면 포털의 로그인 횟수 제한에 걸려 정상 시도까지 막혔습니다. 회차마다 계정·출발지를 바꾸도록 측정 도구를 고쳤습니다.</li>
         <li><strong>새 환경 설치 검증</strong>: GitHub에서 새로 받은 폴더에서 설치 스크립트로 처음부터 끝까지 설치해 보고, 막힌 곳을 문서와 스크립트에 반영했습니다.</li>
@@ -190,7 +190,7 @@ a { color: var(--accent); }
       <ul>
         <li>1인 재구성: <a href="https://github.com/shk12170-dev/nobugs-soar">github.com/shk12170-dev/nobugs-soar</a></li>
       </ul>
-      <p class="note">AI 코딩 도구(Claude Code)를 보조로 썼고, 설계 결정과 검증은 직접 했습니다. 팀 코드는 보지 않고 명세만으로 새로 작성했으며, 작성 규칙과 모듈별 출처는 저장소의 CLEANROOM.md와 PROVENANCE.md에 적었습니다.</p>
+      <p class="note">AI 코딩 도구(Claude Code)를 보조로 썼고, 설계 결정과 검증은 직접 했습니다. 팀 코드를 복사하지 않고 팀 명세를 바탕으로 새로 작성했으며, 작성 규칙과 모듈별 출처는 저장소의 CLEANROOM.md와 PROVENANCE.md에 적었습니다.</p>
     </div>
   </section>
 
