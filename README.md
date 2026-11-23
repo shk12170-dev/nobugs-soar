@@ -8,7 +8,7 @@
 | --- | --- |
 | 팀 원본 저장소 | [NoBugs-Aleph/aleph-soar-capstone](https://github.com/NoBugs-Aleph/aleph-soar-capstone) (관제·탐지·대응), [haedam-portal-backend](https://github.com/NoBugs-Aleph/haedam-portal-backend) · [haedam-portal-frontend](https://github.com/NoBugs-Aleph/haedam-portal-frontend) (민원 포털) |
 | 팀 | NoBugs 1조 4인(2026.10~11) — 팀원 3명과 본인 |
-| 팀에서 본인 역할 | C 자리 — 티켓 저장소(상태 기계·멱등 처리)와 S7(홈페이지 변조) 복구 담당 |
+| 팀에서 본인 역할 | 관제 담당(팀 내부 표기 C) — 티켓 저장소(상태 기계·멱등 처리)와 S7(홈페이지 변조) 복구 담당 |
 | 이 저장소 | 팀이 PC 4대에 나눠 만든 것을 **혼자, PC 한 대에서, 처음부터 새로 설계·구현**한 것입니다. 포털·대응 엔진·탐지 규칙·복구 로직은 팀 코드를 복사한 것이 아니라 팀 명세를 바탕으로 새로 작성했습니다(작성 규칙 [docs/CLEANROOM.md](docs/CLEANROOM.md), 모듈별 출처 [docs/PROVENANCE.md](docs/PROVENANCE.md)). |
 | 팀과 다른 점 | 팀은 대응을 n8n 워크플로로 조립했지만, 이 저장소는 대응 로직을 **직접 만든 Python 대응 엔진**(티켓 상태 기계·멱등·효과 확인·자동 원복)으로 구현했고, n8n은 Graylog 탐지를 엔진으로 중계하는 자리에 둡니다(S1). |
 
